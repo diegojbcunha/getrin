@@ -9,9 +9,10 @@ let sortField = null;
 let sortDir   = 'asc';
 
 document.addEventListener('DOMContentLoaded', async () => {
+  if (!authGuard()) return;
   document.getElementById('sidebar-mount').innerHTML = renderSidebar('workers');
   try {
-    const res = await fetch(`${API_BASE}/workers`);
+    const res = await fetch(`${API_BASE}/workers`, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error("Erro ao obter trabalhadores");
     workersData = await res.json();
     filteredWorkers = [...workersData];
@@ -86,7 +87,7 @@ function renderWorkerTable(list) {
 /* Navega para o perfil do trabalhador */
 function openWorker(id) {
   State.selectedWorker = id;
-  window.location.href = 'profile.html';
+  window.location.href = '/html/profile.html';
 }
 
 /* ---- Busca em tempo real ---- */

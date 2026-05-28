@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
-  <link rel="stylesheet" href="../css/style.css" />
-  <link rel="stylesheet" href="../css/login.css" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/login.css" />
 </head>
 <body>
 
@@ -29,13 +29,13 @@
     <div class="form-field">
       <label class="form-label" for="email">E-mail corporativo</label>
       <input class="form-input" id="email" type="email"
-             value="joao.silva@metalurgica.com.br" autocomplete="email" />
+             placeholder="seu@email.com.br" autocomplete="email" />
     </div>
 
     <!-- Senha -->
     <div class="form-field">
       <label class="form-label" for="password">Senha</label>
-      <input class="form-input" id="password" type="password" value="••••••••" />
+      <input class="form-input" id="password" type="password" placeholder="Sua senha" />
     </div>
 
     <!-- Seletor de perfil -->
@@ -55,6 +55,7 @@
     </div>
 
     <button class="login-btn" onclick="doLogin()">Entrar no sistema</button>
+    <button class="login-btn" onclick="doSignup()" style="background:transparent; color:var(--primary); border: 1px solid var(--primary); margin-top: 8px;">Criar nova conta</button>
 
     <!-- Empresa -->
     <div class="login-company">
@@ -65,7 +66,7 @@
   </div>
 </div>
 
-<script src="../js/data.js"></script>
-<script src="../js/login.js"></script>
+<script src="/js/data.js"></script>
+<script src="/js/login.js"></script>
 </body>
 </html>

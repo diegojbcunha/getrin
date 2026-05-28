@@ -1,31 +1,89 @@
-/* =============================================================
+﻿/* =============================================================
    GETRIN — Dados compartilhados e utilitários
    js/data.js
    Carregue este arquivo em TODAS as páginas, antes dos outros JS.
    ============================================================= */
 
 /* ---------------------------------------------------------------
+   CONFIGURAÇÃO DA API
+   Relativa ao host — funciona tanto via Express (porta 3003)
+   quanto aberto diretamente no navegador (fallback para localhost).
+   --------------------------------------------------------------- */
+const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? `http://${location.hostname}:3003/api`
+  : '/api';
+
+/* ---------------------------------------------------------------
    ESTADO GLOBAL (salvo em sessionStorage para navegar entre páginas)
    --------------------------------------------------------------- */
-const API_BASE = 'http://localhost:3003/api';
-
 const State = {
+  // Autenticação
+  get token()           { return sessionStorage.getItem('getrin_token')        || ''; },
+  set token(v)          { sessionStorage.setItem('getrin_token', v); },
+
   get loginRole()       { return sessionStorage.getItem('getrin_loginRole')    || 'admin'; },
   set loginRole(v)      { sessionStorage.setItem('getrin_loginRole', v); },
 
-  get currentName()     { return sessionStorage.getItem('getrin_name')         || 'Paulo Henrique'; },
+  get currentName()     { return sessionStorage.getItem('getrin_name')         || ''; },
   set currentName(v)    { sessionStorage.setItem('getrin_name', v); },
 
-  get currentInitials() { return sessionStorage.getItem('getrin_initials')     || 'PH'; },
+  get currentInitials() { return sessionStorage.getItem('getrin_initials')     || ''; },
   set currentInitials(v){ sessionStorage.setItem('getrin_initials', v); },
 
-  get currentRole()     { return sessionStorage.getItem('getrin_role')         || 'Administrador'; },
+  get currentRole()     { return sessionStorage.getItem('getrin_role')         || ''; },
   set currentRole(v)    { sessionStorage.setItem('getrin_role', v); },
 
   /* ID do trabalhador selecionado para abrir o perfil */
-  get selectedWorker()  { return sessionStorage.getItem('getrin_worker')       || 'b0000000-0000-0000-0000-000000000001'; },
+  get selectedWorker()  { return sessionStorage.getItem('getrin_worker')       || ''; },
   set selectedWorker(v) { sessionStorage.setItem('getrin_worker', v); },
+
+  /* Limpar tudo na sessão (logout) */
+  clear() {
+    ['getrin_token','getrin_loginRole','getrin_name','getrin_initials',
+     'getrin_role','getrin_worker'].forEach(k => sessionStorage.removeItem(k));
+  }
 };
+
+/* ---------------------------------------------------------------
+   AUTENTICAÇÃO — Guard e Headers
+   --------------------------------------------------------------- */
+
+/**
+ * Retorna os headers HTTP com o token de autenticação.
+ * Use em todos os fetch() das páginas internas.
+ */
+function getAuthHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${State.token}`
+  };
+}
+
+/**
+ * Protege páginas internas: se não há token, redireciona para o login.
+ * Chame no topo do DOMContentLoaded de cada página interna.
+ */
+function authGuard() {
+  if (!State.token) {
+    window.location.href = '/html/login.html';
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Realiza logout: limpa a sessão e redireciona para o login.
+ */
+async function doLogout() {
+  try {
+    await fetch(`${API_BASE}/auth/logout`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+  } catch (_) { /* ignora erros de rede no logout */ }
+  State.clear();
+  window.location.href = '/html/login.html';
+}
 
 /* ---------------------------------------------------------------
    CATÁLOGO DE TREINAMENTOS
@@ -319,7 +377,7 @@ function renderSidebar(activePage, workerMode = false) {
       </div>
       <div class="sidebar-section">
         <div class="sidebar-section-label">Minha área</div>
-        <a href="portal.html"   class="nav-item ${activePage==='portal'?'active':''}"><i class="ti ti-layout-dashboard"></i>Meus treinamentos</a>
+        <a href="/html/portal.html"   class="nav-item ${activePage==='portal'?'active':''}"><i class="ti ti-layout-dashboard"></i>Meus treinamentos</a>
         <a href="#" class="nav-item" onclick="showToast('Certificados em breve.');return false;"><i class="ti ti-certificate"></i>Certificados</a>
         <a href="#" class="nav-item" onclick="showToast('Sem novas notificações.');return false;"><i class="ti ti-bell"></i>Notificações</a>
       </div>
@@ -330,18 +388,18 @@ function renderSidebar(activePage, workerMode = false) {
             <div class="user-info-name">${name}</div>
             <div class="user-info-role">${role}</div>
           </div>
-          <a href="login.html" class="ti ti-logout" title="Sair"></a>
+          <a href="#" class="ti ti-logout" title="Sair" onclick="doLogout();return false;"></a>
         </div>
       </div>
     </div>`;
   }
 
   const navItems = [
-    { page: 'dashboard', href: 'dashboard.html', icon: 'ti-layout-dashboard', label: 'Dashboard'     },
-    { page: 'trainings', href: 'trainings.html', icon: 'ti-books',             label: 'Treinamentos'  },
-    { page: 'workers',   href: 'workers.html',   icon: 'ti-users',             label: 'Trabalhadores' },
-    { page: 'alerts',    href: 'alerts.html',    icon: 'ti-bell',              label: 'Alertas'       },
-    { page: 'reports',   href: 'reports.html',   icon: 'ti-chart-bar',         label: 'Relatórios'    },
+    { page: 'dashboard', href: '/html/dashboard.html', icon: 'ti-layout-dashboard', label: 'Dashboard'     },
+    { page: 'trainings', href: '/html/trainings.html', icon: 'ti-books',             label: 'Treinamentos'  },
+    { page: 'workers',   href: '/html/workers.html',   icon: 'ti-users',             label: 'Trabalhadores' },
+    { page: 'alerts',    href: '/html/alerts.html',    icon: 'ti-bell',              label: 'Alertas'       },
+    { page: 'reports',   href: '/html/reports.html',   icon: 'ti-chart-bar',         label: 'Relatórios'    },
   ];
 
   const navHtml = navItems.map(n => {
@@ -369,7 +427,7 @@ function renderSidebar(activePage, workerMode = false) {
     </div>
     <div class="sidebar-section">
       <div class="sidebar-section-label">Config.</div>
-      <a href="empresa.html" class="nav-item ${activePage==='empresa'?'active':''}"><i class="ti ti-building-factory-2"></i>Empresa</a>
+      <a href="/html/empresa.html" class="nav-item ${activePage==='empresa'?'active':''}"><i class="ti ti-building-factory-2"></i>Empresa</a>
     </div>
     <div class="sidebar-footer">
       <div class="user-row">
@@ -378,7 +436,7 @@ function renderSidebar(activePage, workerMode = false) {
           <div class="user-info-name">${name}</div>
           <div class="user-info-role">${role}</div>
         </div>
-        <a href="login.html" class="ti ti-logout" title="Sair"></a>
+        <a href="#" class="ti ti-logout" title="Sair" onclick="doLogout();return false;"></a>
       </div>
     </div>
   </div>`;

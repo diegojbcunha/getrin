@@ -7,6 +7,7 @@ let alertsData = [];
 let activeLevel = 'all';
 
 document.addEventListener('DOMContentLoaded', async () => {
+  if (!authGuard()) return;
   document.getElementById('sidebar-mount').innerHTML = renderSidebar('alerts');
   injectSharedHTML();
   await loadAlerts();
@@ -18,7 +19,7 @@ async function loadAlerts() {
   list.innerHTML = `<div class="alerts-loading"><i class="ti ti-loader-2"></i>Carregando alertas...</div>`;
 
   try {
-    const res = await fetch(`${API_BASE}/alerts`);
+    const res = await fetch(`${API_BASE}/alerts`, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error("Erro ao obter alertas");
     const raw = await res.json();
 

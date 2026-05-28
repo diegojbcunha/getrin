@@ -4,10 +4,11 @@
    ============================================================= */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  if (!authGuard()) return;
   document.getElementById('sidebar-mount').innerHTML = renderSidebar('workers');
 
   try {
-    const res = await fetch(`${API_BASE}/workers/${State.selectedWorker}`);
+    const res = await fetch(`${API_BASE}/workers/${State.selectedWorker}`, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error("Erro ao obter trabalhador");
     const w = await res.json();
     

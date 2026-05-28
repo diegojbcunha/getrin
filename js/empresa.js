@@ -8,6 +8,7 @@ let activeNrs = new Set();
 let originalData = {};
 
 document.addEventListener('DOMContentLoaded', async () => {
+  if (!authGuard()) return;
   document.getElementById('sidebar-mount').innerHTML = renderSidebar('empresa');
   injectSharedHTML();
   await loadDashboardStats();
@@ -17,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 /* ---- Estatísticas do anel (vindas do /api/dashboard) ---- */
 async function loadDashboardStats() {
   try {
-    const res = await fetch(`${API_BASE}/dashboard`);
+    const res = await fetch(`${API_BASE}/dashboard`, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error();
     const data = await res.json();
     const m = data.metrics;

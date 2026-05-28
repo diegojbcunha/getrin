@@ -4,9 +4,10 @@
    ============================================================= */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  if (!authGuard()) return;
   document.getElementById('sidebar-mount').innerHTML = renderSidebar('reports');
   try {
-    const res = await fetch(`${API_BASE}/reports`);
+    const res = await fetch(`${API_BASE}/reports`, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error("Erro ao obter dados de relatórios");
     const data = await res.json();
     

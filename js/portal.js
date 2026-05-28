@@ -4,9 +4,10 @@
    ============================================================= */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  if (!authGuard()) return;
   document.getElementById('sidebar-mount').innerHTML = renderSidebar('portal', true);
   try {
-    const res = await fetch(`${API_BASE}/workers/${State.selectedWorker}`);
+    const res = await fetch(`${API_BASE}/workers/${State.selectedWorker}`, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error("Erro ao obter dados do trabalhador");
     const w = await res.json();
     

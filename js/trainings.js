@@ -6,9 +6,10 @@
 let trainingsData = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
+  if (!authGuard()) return;
   document.getElementById('sidebar-mount').innerHTML = renderSidebar('trainings');
   try {
-    const res = await fetch(`${API_BASE}/trainings`);
+    const res = await fetch(`${API_BASE}/trainings`, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error("Erro ao obter treinamentos");
     trainingsData = await res.json();
     renderTrainings(trainingsData);

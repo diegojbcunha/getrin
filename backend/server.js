@@ -1,23 +1,143 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 const supabase = require('./supabaseClient');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3003;
 
+// Raiz do projeto (um nível acima de /backend)
+const PROJECT_ROOT = path.join(__dirname, '..');
+
 // Middlewares
 app.use(cors());
 app.use(express.json());
 
-// Rota raiz informativa
+// Serve arquivos estáticos do frontend (css, js, html, etc.)
+app.use('/css',  express.static(path.join(PROJECT_ROOT, 'css')));
+app.use('/js',   express.static(path.join(PROJECT_ROOT, 'js')));
+app.use('/html', express.static(path.join(PROJECT_ROOT, 'html')));
+app.use(express.static(PROJECT_ROOT)); // serve index.html da raiz
+
+// Rota raiz — redireciona para o login
 app.get('/', (req, res) => {
-  res.json({
-    name: "Getrin Backend API",
-    status: "online",
-    message: "Conectado ao Supabase com sucesso!"
-  });
+  res.redirect('/html/login.html');
 });
+
+// ==========================================
+// ROTAS DE AUTENTICAÇÃO
+// ==========================================
+
+// Cadastro de usuário
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
+    }
+
+    // Usando supabase.auth.signUp para criar o usuário no DB
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+      console.error('Supabase SignUp Error:', error);
+      return res.status(401).json({ error: 'Erro ao criar conta. O e-mail pode já existir ou a senha é muito fraca.' });
+    }
+
+    res.json({ message: 'Conta criada com sucesso!', user: data.user });
+  } catch (err) {
+    console.error('Erro no cadastro:', err);
+    res.status(500).json({ error: 'Erro interno no servidor.' });
+  }
+});
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      return res.status(401).json({ error: 'Credenciais inválidas. Verifique seu e-mail e senha.' });
+    }
+
+    const user = data.user;
+    const session = data.session;
+
+    // Detectar papel do usuário pelo e-mail (ou metadata se configurado no Supabase)
+    const role = user.user_metadata?.role || detectRoleByEmail(email);
+    const name = user.user_metadata?.name || formatNameFromEmail(email);
+    const initials = makeInitials(name);
+
+    res.json({
+      token: session.access_token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name,
+        initials,
+        role
+      }
+    });
+  } catch (err) {
+    console.error('Erro no login:', err);
+    res.status(500).json({ error: 'Erro interno no servidor.' });
+  }
+});
+
+// Logout
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    await supabase.auth.signOut();
+    res.json({ message: 'Logout realizado com sucesso.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao realizar logout.' });
+  }
+});
+
+// Verificar sessão atual
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (!token) return res.status(401).json({ error: 'Não autenticado.' });
+
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user) return res.status(401).json({ error: 'Token inválido ou expirado.' });
+
+    const user = data.user;
+    const role = user.user_metadata?.role || detectRoleByEmail(user.email);
+    const name = user.user_metadata?.name || formatNameFromEmail(user.email);
+    const initials = makeInitials(name);
+
+    res.json({ id: user.id, email: user.email, name, initials, role });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao verificar sessão.' });
+  }
+});
+
+// ---- Helpers de autenticação ----
+function detectRoleByEmail(email) {
+  if (!email) return 'worker';
+  const e = email.toLowerCase();
+  if (e.includes('admin')) return 'admin';
+  if (e.includes('gestor') || e.includes('manager')) return 'manager';
+  return 'worker';
+}
+
+function formatNameFromEmail(email) {
+  if (!email) return 'Usuário';
+  const local = email.split('@')[0];
+  return local.split(/[._]/).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+}
+
+function makeInitials(name) {
+  return name.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('');
+}
 
 // ==========================================
 // ROTAS DE TRABALHADORES (Workers)
@@ -487,8 +607,7 @@ async function recalculateCompliance(workerId) {
   }
 }
 
-const fs = require('fs');
-const path = require('path');
+// (fs e path já importados no topo)
 
 // ==========================================
 // ROTAS DE CONFIGURAÇÃO (Settings)
@@ -527,8 +646,13 @@ app.post('/api/settings', (req, res) => {
   }
 });
 
+// Rotas de conveniência
+app.get('/login', (req, res) => {
+  res.redirect('/html/login.html');
+});
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`Servidor rodando com sucesso na porta ${PORT}`);
-  console.log(`Endpoint local: http://localhost:${PORT}`);
+  console.log(`Acesse o sistema em: http://localhost:${PORT}`);
 });
