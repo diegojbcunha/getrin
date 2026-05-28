@@ -1,0 +1,9 @@
+/* =============================================================
+   GETRIN — Relatórios
+   css/reports.css
+   ============================================================= */
+
+/* Reutiliza: metrics-row, two-col, panel, bar-chart-*, table
+   do style.css. Adicione aqui eventuais customizações. */
+
+.reports-panel-mt { margin-top: 14px; }

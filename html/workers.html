@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getrin — Trabalhadores</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/workers.css" />
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Sidebar -->
+  <div id="sidebar-mount"></div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title">Trabalhadores</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn" onclick="showToast('Exportando lista...')">
+          <i class="ti ti-table-export"></i>Exportar
+        </button>
+        <button class="btn" onclick="showToast('Importando trabalhadores...')">
+          <i class="ti ti-upload"></i>Importar
+        </button>
+        <button class="btn btn-primary" onclick="openModal('modal-new-worker')">
+          <i class="ti ti-plus"></i>Novo trabalhador
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content-area">
+
+      <!-- Métricas resumidas -->
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="metric-label">Total de trabalhadores</div>
+          <div class="metric-value" id="stat-total">—</div>
+          <div class="metric-sub">Ativos no sistema</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Conformes</div>
+          <div class="metric-value c-green" id="stat-conformes">—</div>
+          <div class="metric-sub">100% dos treinamentos válidos</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Em risco</div>
+          <div class="metric-value c-warn" id="stat-risco">—</div>
+          <div class="metric-sub">Treinamento vencendo em breve</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Não conformes</div>
+          <div class="metric-value c-danger" id="stat-nconf">—</div>
+          <div class="metric-sub">Treinamento vencido ou ausente</div>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filters-row">
+        <input
+          class="filter-input"
+          id="worker-search"
+          placeholder="Buscar por nome, função, matrícula ou setor..."
+          oninput="filterWorkers(this.value)"
+        />
+
+        <div class="status-filters">
+          <button class="status-filter-btn active" data-status="all"
+                  onclick="setStatusFilter('all', this)">
+            Todos
+          </button>
+          <button class="status-filter-btn" data-status="green"
+                  onclick="setStatusFilter('green', this); this.classList.add('active-green')">
+            <span style="width:6px;height:6px;border-radius:50%;background:var(--green-600);display:inline-block;"></span>
+            Conformes
+          </button>
+          <button class="status-filter-btn" data-status="amber"
+                  onclick="setStatusFilter('amber', this); this.classList.add('active-amber')">
+            <span style="width:6px;height:6px;border-radius:50%;background:var(--amber-600);display:inline-block;"></span>
+            Em risco
+          </button>
+          <button class="status-filter-btn" data-status="red"
+                  onclick="setStatusFilter('red', this); this.classList.add('active-red')">
+            <span style="width:6px;height:6px;border-radius:50%;background:var(--red-600);display:inline-block;"></span>
+            Não conformes
+          </button>
+        </div>
+
+        <span class="filters-count" id="workers-count"></span>
+      </div>
+
+      <!-- Tabela -->
+      <div class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:26%;" class="th-sortable" onclick="sortBy('name')">
+                Trabalhador
+                <i class="sort-icon ti ti-selector" id="sort-name"></i>
+              </th>
+              <th style="width:18%;" class="th-sortable" onclick="sortBy('role')">
+                Função
+                <i class="sort-icon ti ti-selector" id="sort-role"></i>
+              </th>
+              <th style="width:14%;" class="th-sortable" onclick="sortBy('sector')">
+                Setor
+                <i class="sort-icon ti ti-selector" id="sort-sector"></i>
+              </th>
+              <th style="width:14%;">Gestor</th>
+              <th style="width:16%;" class="th-sortable" onclick="sortBy('compliance')">
+                Conformidade
+                <i class="sort-icon ti ti-selector" id="sort-compliance"></i>
+              </th>
+              <th style="width:9%;">Status</th>
+              <th style="width:3%;"></th>
+            </tr>
+          </thead>
+          <tbody id="workers-tbody"></tbody>
+        </table>
+      </div>
+
+    </div><!-- /content-area -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+
+<!-- MODAL: Novo Trabalhador -->
+<div class="modal-overlay" id="modal-new-worker">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Novo trabalhador</span>
+      <i class="ti ti-x modal-close" onclick="closeModal('modal-new-worker')"></i>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid-2">
+        <div class="form-field">
+          <label class="form-label">Nome completo</label>
+          <input class="form-input" placeholder="Ex: João da Silva" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">Matrícula</label>
+          <input class="form-input" placeholder="Ex: #00512" />
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-field">
+          <label class="form-label">Função</label>
+          <input class="form-input" placeholder="Ex: Eletricista Pleno" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">Setor</label>
+          <select class="form-select">
+            <option>Infraestrutura</option>
+            <option>Produção</option>
+            <option>Manutenção</option>
+            <option>Logística</option>
+            <option>Qualidade</option>
+            <option>Administrativo</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-field">
+          <label class="form-label">Gestor responsável</label>
+          <select class="form-select">
+            <option>Paulo Henrique</option>
+            <option>Lucas Andrade</option>
+            <option>Renata Lima</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Data de admissão</label>
+          <input class="form-input" type="date" />
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">E-mail corporativo</label>
+        <input class="form-input" type="email" placeholder="joao@empresa.com.br" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-new-worker')">Cancelar</button>
+      <button class="btn btn-primary"
+              onclick="submitModal('modal-new-worker','Trabalhador cadastrado com sucesso.')">
+        Cadastrar
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<script src="../js/data.js"></script>
+<script src="../js/workers.js"></script>
+</body>
+</html>

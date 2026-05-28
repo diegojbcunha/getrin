@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getrin — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/login.css" />
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-card">
+
+    <!-- Logo -->
+    <div class="login-logo-name">
+      g<span>etrin</span>
+      <div class="logo-pip" style="width:6px;height:6px;margin-left:4px;"></div>
+    </div>
+    <div class="login-logo-sub">Gestão de Treinamentos Regulatórios</div>
+
+    <hr class="login-divider" />
+
+    <!-- E-mail -->
+    <div class="form-field">
+      <label class="form-label" for="email">E-mail corporativo</label>
+      <input class="form-input" id="email" type="email"
+             value="joao.silva@metalurgica.com.br" autocomplete="email" />
+    </div>
+
+    <!-- Senha -->
+    <div class="form-field">
+      <label class="form-label" for="password">Senha</label>
+      <input class="form-input" id="password" type="password" value="••••••••" />
+    </div>
+
+    <!-- Seletor de perfil -->
+    <div class="form-field">
+      <label class="form-label" style="margin-bottom:8px;">Perfil de acesso</label>
+      <div class="role-selector">
+        <div class="role-option selected" data-role="admin" onclick="setLoginRole('admin')">
+          <i class="ti ti-shield"></i>Admin
+        </div>
+        <div class="role-option" data-role="manager" onclick="setLoginRole('manager')">
+          <i class="ti ti-users"></i>Gestor
+        </div>
+        <div class="role-option" data-role="worker" onclick="setLoginRole('worker')">
+          <i class="ti ti-user"></i>Trabalhador
+        </div>
+      </div>
+    </div>
+
+    <button class="login-btn" onclick="doLogin()">Entrar no sistema</button>
+
+    <!-- Empresa -->
+    <div class="login-company">
+      <i class="ti ti-building-factory-2"></i>
+      <span>Metalúrgica Nordeste S.A.</span>
+    </div>
+
+  </div>
+</div>
+
+<script src="../js/data.js"></script>
+<script src="../js/login.js"></script>
+</body>
+</html>

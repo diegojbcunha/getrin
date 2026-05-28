@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getrin — Relatórios</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/reports.css" />
+</head>
+<body>
+
+<div class="app">
+
+  <div id="sidebar-mount"></div>
+
+  <div class="main">
+
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title">Relatórios de conformidade</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn" onclick="showToast('PDF gerado com sucesso.')">
+          <i class="ti ti-file-type-pdf"></i>Exportar PDF
+        </button>
+        <button class="btn" onclick="showToast('Planilha exportada.')">
+          <i class="ti ti-table-export"></i>Exportar XLSX
+        </button>
+      </div>
+    </div>
+
+    <div class="content-area">
+
+      <!-- Filtros -->
+      <div class="filters-row">
+        <button class="filter-pill" onclick="showToast('Filtro: setor aplicado.')">
+          <i class="ti ti-building"></i>Setor
+        </button>
+        <button class="filter-pill" onclick="showToast('Filtro: função aplicado.')">
+          <i class="ti ti-users"></i>Função
+        </button>
+        <button class="filter-pill" onclick="showToast('Filtro: norma aplicado.')">
+          <i class="ti ti-shield-check"></i>Norma NR
+        </button>
+        <button class="filter-pill" onclick="showToast('Filtro: período aplicado.')">
+          <i class="ti ti-calendar"></i>Período
+        </button>
+        <span class="filters-count">Jan – Jun 2025</span>
+      </div>
+
+      <!-- Métricas de resumo -->
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="metric-label">Taxa geral de conformidade</div>
+          <div class="metric-value c-accent">84%</div>
+          <div class="metric-sub">Jan–Jun 2025</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Trabalhadores conformes</div>
+          <div class="metric-value">262</div>
+          <div class="metric-sub">de 312 ativos</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Em risco</div>
+          <div class="metric-value c-warn">26</div>
+          <div class="metric-sub">8,3% da força</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Não conformes</div>
+          <div class="metric-value c-danger">24</div>
+          <div class="metric-sub">7,7% da força</div>
+        </div>
+      </div>
+
+      <!-- Gráfico + Tabela por norma -->
+      <div class="two-col">
+
+        <!-- Gráfico de barras -->
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel-header">
+            <span class="panel-title">Conformidade por setor</span>
+          </div>
+          <div class="bar-chart-wrap">
+            <div class="bar-chart-grid" id="dept-chart"></div>
+          </div>
+        </div>
+
+        <!-- Por norma -->
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel-header">
+            <span class="panel-title">Por norma regulamentadora</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:22%">Norma</th>
+                <th style="width:38%">Conformidade</th>
+                <th style="width:20%">Válidos</th>
+                <th style="width:20%">Vencidos</th>
+              </tr>
+            </thead>
+            <tbody id="norm-tbody"></tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- Detalhamento por trabalhador -->
+      <div class="panel reports-panel-mt">
+        <div class="panel-header">
+          <span class="panel-title">Detalhamento por trabalhador</span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text-3);">312 registros</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:18%">Trabalhador</th>
+              <th style="width:16%">Setor</th>
+              <th style="width:13%">Função</th>
+              <th style="width:9%">Válidos</th>
+              <th style="width:9%">Vencidos</th>
+              <th style="width:20%">Conformidade</th>
+              <th style="width:15%">Status</th>
+            </tr>
+          </thead>
+          <tbody id="report-workers-tbody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="../js/data.js"></script>
+<script src="../js/reports.js"></script>
+</body>
+</html>

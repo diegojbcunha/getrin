@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getrin — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <link rel="stylesheet" href="../css/style.css" />
+
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Sidebar (injetado pelo JS) -->
+  <div id="sidebar-mount"></div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title">Painel Geral</span>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-meta">Ciclo: Jan–Jun 2025</span>
+        <button class="btn" onclick="showToast('Relatório exportado.')">
+          <i class="ti ti-download"></i>Exportar
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content-area">
+
+      <!-- Métricas -->
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="metric-label">Conformidade geral</div>
+          <div class="metric-value c-accent" id="metric-compliance">—</div>
+          <div class="metric-sub">+3pp vs mês anterior</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Trabalhadores ativos</div>
+          <div class="metric-value" id="metric-workers">—</div>
+          <div class="metric-sub">6 setores</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Vencendo em 30 dias</div>
+          <div class="metric-value c-warn" id="metric-expiring">—</div>
+          <div class="metric-sub">Requer ação imediata</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Não conformes</div>
+          <div class="metric-value c-danger" id="metric-noncompliant">—</div>
+          <div class="metric-sub">7,7% da força de trabalho</div>
+        </div>
+      </div>
+
+      <!-- Alertas -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Alertas ativos</span>
+          <span class="badge badge-amber">38 pendentes</span>
+        </div>
+        <div id="alerts-list"></div>
+      </div>
+
+      <!-- Atividade recente -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Atividade recente</span>
+          <button class="btn btn-sm" onclick="showToast('Carregando histórico completo...')">Ver tudo</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:22%">Trabalhador</th>
+              <th style="width:28%">Treinamento</th>
+              <th style="width:14%">Norma</th>
+              <th style="width:18%">Data</th>
+              <th style="width:18%">Status</th>
+            </tr>
+          </thead>
+          <tbody id="activity-tbody"></tbody>
+        </table>
+      </div>
+
+    </div><!-- /content-area -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script src="../js/data.js"></script>
+<script src="../js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getrin — Empresa</title>
+  <meta name="description" content="Perfil e dados cadastrais da empresa no sistema Getrin de gestão de conformidade NR." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/empresa.css" />
+</head>
+<body>
+
+<div class="app">
+
+  <div id="sidebar-mount"></div>
+
+  <div class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title">Empresa</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn" onclick="cancelEdit()">
+          <i class="ti ti-x"></i>Cancelar
+        </button>
+        <button class="btn btn-primary" onclick="saveCompany()">
+          <i class="ti ti-device-floppy"></i>Salvar
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content-area">
+      <div class="empresa-layout">
+
+        <!-- Coluna esquerda: identidade visual -->
+        <div class="empresa-sidebar-col">
+
+          <div class="card">
+            <div class="card-label">Logo da empresa</div>
+            <div class="logo-upload-area" id="logo-area" onclick="document.getElementById('logo-input').click()">
+              <div class="logo-preview" id="logo-preview">
+                <i class="ti ti-building-factory-2" style="font-size:36px;color:var(--text-3);"></i>
+              </div>
+              <div class="logo-upload-hint">Clique para enviar<br><span>PNG, JPG — máx. 2 MB</span></div>
+            </div>
+            <input type="file" id="logo-input" accept="image/*" style="display:none;" onchange="previewLogo(event)" />
+          </div>
+
+          <div class="card">
+            <div class="card-label">Conformidade geral</div>
+            <div class="empresa-compliance-ring" id="emp-ring">
+              <svg viewBox="0 0 80 80" width="80" height="80">
+                <circle cx="40" cy="40" r="32" fill="none" stroke="var(--border)" stroke-width="6"/>
+                <circle id="ring-arc" cx="40" cy="40" r="32" fill="none"
+                  stroke="var(--green-600)" stroke-width="6"
+                  stroke-dasharray="201" stroke-dashoffset="201"
+                  stroke-linecap="round"
+                  transform="rotate(-90 40 40)"/>
+              </svg>
+              <div class="ring-label" id="ring-label">—%</div>
+            </div>
+            <div class="empresa-stats-mini">
+              <div class="stat-mini"><span class="stat-mini-val c-green" id="emp-conformes">—</span><span class="stat-mini-key">Conformes</span></div>
+              <div class="stat-mini"><span class="stat-mini-val c-warn" id="emp-risco">—</span><span class="stat-mini-key">Em risco</span></div>
+              <div class="stat-mini"><span class="stat-mini-val c-danger" id="emp-nconf">—</span><span class="stat-mini-key">Não conf.</span></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Coluna direita: formulário -->
+        <div class="empresa-form-col">
+
+          <!-- Identificação -->
+          <div class="card">
+            <div class="card-section-title"><i class="ti ti-building-factory-2"></i>Identificação</div>
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label class="form-label" for="emp-razao">Razão social</label>
+                <input class="form-input" type="text" id="emp-razao" placeholder="Ex.: Indústrias Getrin Ltda." />
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="emp-fantasia">Nome fantasia</label>
+                <input class="form-input" type="text" id="emp-fantasia" placeholder="Ex.: Getrin Industrial" />
+              </div>
+            </div>
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label class="form-label" for="emp-cnpj">CNPJ</label>
+                <input class="form-input" type="text" id="emp-cnpj" placeholder="00.000.000/0001-00" maxlength="18" oninput="maskCnpj(this)" />
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="emp-atividade">Atividade principal (CNAE)</label>
+                <input class="form-input" type="text" id="emp-atividade" placeholder="Ex.: 2811-9/00 — Fabricação de motores" />
+              </div>
+            </div>
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label class="form-label" for="emp-grau">Grau de risco</label>
+                <select class="form-select" id="emp-grau">
+                  <option value="">Selecione</option>
+                  <option value="1">Grau 1</option>
+                  <option value="2">Grau 2</option>
+                  <option value="3">Grau 3</option>
+                  <option value="4">Grau 4</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="emp-fundacao">Data de fundação</label>
+                <input class="form-input" type="date" id="emp-fundacao" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Endereço -->
+          <div class="card">
+            <div class="card-section-title"><i class="ti ti-map-pin"></i>Endereço</div>
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label class="form-label" for="emp-cep">CEP</label>
+                <input class="form-input" type="text" id="emp-cep" placeholder="00000-000" maxlength="9" oninput="maskCep(this)" />
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="emp-estado">Estado</label>
+                <select class="form-select" id="emp-estado">
+                  <option value="">UF</option>
+                  <option>AC</option><option>AL</option><option>AM</option><option>AP</option>
+                  <option>BA</option><option>CE</option><option>DF</option><option>ES</option>
+                  <option>GO</option><option>MA</option><option>MG</option><option>MS</option>
+                  <option>MT</option><option>PA</option><option>PB</option><option>PE</option>
+                  <option>PI</option><option>PR</option><option>RJ</option><option>RN</option>
+                  <option>RO</option><option>RR</option><option>RS</option><option>SC</option>
+                  <option>SE</option><option>SP</option><option>TO</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="emp-logradouro">Logradouro</label>
+              <input class="form-input" type="text" id="emp-logradouro" placeholder="Rua, Avenida, etc." />
+            </div>
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label class="form-label" for="emp-numero">Número</label>
+                <input class="form-input" type="text" id="emp-numero" placeholder="Nº" />
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="emp-complemento">Complemento</label>
+                <input class="form-input" type="text" id="emp-complemento" placeholder="Sala, Bloco, etc." />
+              </div>
+            </div>
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label class="form-label" for="emp-bairro">Bairro</label>
+                <input class="form-input" type="text" id="emp-bairro" placeholder="Bairro" />
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="emp-cidade">Cidade</label>
+                <input class="form-input" type="text" id="emp-cidade" placeholder="Cidade" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Contato -->
+          <div class="card">
+            <div class="card-section-title"><i class="ti ti-phone"></i>Contato</div>
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label class="form-label" for="emp-tel">Telefone</label>
+                <input class="form-input" type="tel" id="emp-tel" placeholder="(00) 0000-0000" maxlength="15" oninput="maskTel(this)" />
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="emp-email">E-mail institucional</label>
+                <input class="form-input" type="email" id="emp-email" placeholder="contato@empresa.com.br" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="emp-responsavel">Responsável pelo SESMT / CIPA</label>
+              <input class="form-input" type="text" id="emp-responsavel" placeholder="Nome do responsável" />
+            </div>
+          </div>
+
+          <!-- Normas aplicáveis -->
+          <div class="card">
+            <div class="card-section-title"><i class="ti ti-file-certificate"></i>Normas regulamentadoras aplicáveis</div>
+            <div class="nr-chips" id="nr-chips"></div>
+            <div class="nr-add-row">
+              <select class="form-select" id="nr-select" style="width:160px;">
+                <option value="">Adicionar NR...</option>
+                <option>NR-01</option><option>NR-04</option><option>NR-05</option>
+                <option>NR-06</option><option>NR-07</option><option>NR-08</option>
+                <option>NR-09</option><option>NR-10</option><option>NR-11</option>
+                <option>NR-12</option><option>NR-13</option><option>NR-15</option>
+                <option>NR-17</option><option>NR-18</option><option>NR-20</option>
+                <option>NR-23</option><option>NR-33</option><option>NR-35</option>
+              </select>
+              <button class="btn" onclick="addNr()"><i class="ti ti-plus"></i>Adicionar</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="../js/data.js"></script>
+<script src="../js/empresa.js"></script>
+</body>
+</html>

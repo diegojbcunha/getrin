@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getrin — Portal do Trabalhador</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/portal.css" />
+</head>
+<body>
+
+<div class="app">
+
+  <div id="sidebar-mount"></div>
+
+  <div class="main">
+
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title">Meus treinamentos</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn" onclick="showToast('Certificados disponíveis.')">
+          <i class="ti ti-certificate"></i>Meus certificados
+        </button>
+      </div>
+    </div>
+
+    <div class="content-area">
+
+      <!-- Banner de conformidade -->
+      <div class="portal-banner">
+        <div class="portal-pct-block">
+          <div class="portal-big-pct c-warn">67%</div>
+          <div>
+            <div class="portal-status-name">Conformidade atual</div>
+            <div class="portal-status-sub">2 treinamentos pendentes · 1 vencido</div>
+          </div>
+        </div>
+        <span class="badge badge-amber">Em risco</span>
+      </div>
+
+      <!-- Pendentes -->
+      <div class="section-div">Pendentes e em andamento</div>
+      <div class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:28%">Treinamento</th>
+              <th style="width:9%">Norma</th>
+              <th style="width:20%">Progresso</th>
+              <th style="width:18%">Prazo / Vencimento</th>
+              <th style="width:13%">Status</th>
+              <th style="width:12%">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="pending-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Concluídos -->
+      <div class="section-div">Concluídos e válidos</div>
+      <div class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:32%">Treinamento</th>
+              <th style="width:10%">Norma</th>
+              <th style="width:16%">Conclusão</th>
+              <th style="width:18%">Válido até</th>
+              <th style="width:12%">Status</th>
+              <th style="width:12%">Certificado</th>
+            </tr>
+          </thead>
+          <tbody id="completed-tbody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="../js/data.js"></script>
+<script src="../js/portal.js"></script>
+</body>
+</html>

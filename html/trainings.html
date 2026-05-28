@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getrin — Treinamentos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+<div class="app">
+
+  <div id="sidebar-mount"></div>
+
+  <div class="main">
+
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title">Treinamentos</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn" onclick="showToast('Importar conteúdo EAD...')">
+          <i class="ti ti-upload"></i>Importar conteúdo
+        </button>
+        <button class="btn btn-primary" onclick="openModal('modal-training')">
+          <i class="ti ti-plus"></i>Novo treinamento
+        </button>
+      </div>
+    </div>
+
+    <div class="content-area">
+
+      <!-- Filtros -->
+      <div class="filters-row">
+        <input class="filter-input" placeholder="Buscar por nome ou norma..."
+               oninput="filterTrainings(this.value)" />
+        <button class="filter-pill" onclick="showToast('Filtro por norma aplicado.')">
+          <i class="ti ti-filter"></i>Norma
+        </button>
+        <button class="filter-pill" onclick="showToast('Filtro por função aplicado.')">
+          <i class="ti ti-filter"></i>Função
+        </button>
+        <button class="filter-pill" onclick="showToast('Filtro por status aplicado.')">
+          <i class="ti ti-filter"></i>Status
+        </button>
+        <span class="filters-count" id="training-count"></span>
+      </div>
+
+      <!-- Tabela -->
+      <div class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:24%">Nome do treinamento</th>
+              <th style="width:9%">Norma</th>
+              <th style="width:8%">Carga</th>
+              <th style="width:10%">Validade</th>
+              <th style="width:19%">Funções</th>
+              <th style="width:10%">Modalidade</th>
+              <th style="width:10%">Status</th>
+              <th style="width:10%"></th>
+            </tr>
+          </thead>
+          <tbody id="trainings-tbody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="../js/data.js"></script>
+<script src="../js/trainings.js"></script>
+</body>
+</html>

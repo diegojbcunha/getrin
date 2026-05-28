@@ -1,0 +1,15 @@
+/* =============================================================
+   GETRIN — Portal do Trabalhador
+   css/portal.css
+   ============================================================= */
+
+.portal-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 15px 18px; border: 0.5px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 16px; background: var(--surface);
+}
+
+.portal-pct-block    { display: flex; align-items: center; gap: 14px; }
+.portal-big-pct      { font-family: var(--mono); font-size: 30px; font-weight: 500; line-height: 1; }
+.portal-status-name  { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+.portal-status-sub   { font-size: 11.5px; color: var(--text-3); }

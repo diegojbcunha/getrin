@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getrin — Perfil do Trabalhador</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/profile.css" />
+</head>
+<body>
+
+<div class="app">
+
+  <div id="sidebar-mount"></div>
+
+  <div class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <a href="workers.html" class="topbar-breadcrumb">Trabalhadores</a>
+        <i class="ti ti-chevron-right topbar-sep"></i>
+        <span class="topbar-title" id="topbar-worker-name">—</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn" onclick="showToast('Editando perfil...')">
+          <i class="ti ti-edit"></i>Editar
+        </button>
+        <button class="btn btn-primary" onclick="openModal('modal-assign')">
+          <i class="ti ti-plus"></i>Atribuir treinamento
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content-area">
+      <div class="panel">
+
+        <!-- Cabeçalho do perfil -->
+        <div class="profile-header-inner">
+          <div class="profile-meta">
+            <div class="profile-initials" id="profile-initials">—</div>
+            <div>
+              <div class="profile-name" id="profile-name">—</div>
+              <div class="profile-sub"  id="profile-sub">—</div>
+              <div class="profile-fields">
+                <div class="pf">
+                  <span class="pf-lbl">Setor</span>
+                  <span class="pf-val" id="pf-sector">—</span>
+                </div>
+                <div class="pf">
+                  <span class="pf-lbl">Gestor</span>
+                  <span class="pf-val" id="pf-manager">—</span>
+                </div>
+                <div class="pf">
+                  <span class="pf-lbl">Admissão</span>
+                  <span class="pf-val" id="pf-admission" style="font-family:var(--mono);">—</span>
+                </div>
+                <div class="pf">
+                  <span class="pf-lbl">E-mail</span>
+                  <span class="pf-val" id="pf-email">—</span>
+                </div>
+                <div class="pf">
+                  <span class="pf-lbl">Telefone</span>
+                  <span class="pf-val" id="pf-phone">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="profile-right">
+            <span id="profile-badge">—</span>
+            <span class="profile-pct" id="profile-pct">—</span>
+          </div>
+        </div>
+
+        <!-- Barra de conformidade geral -->
+        <div style="padding:12px 14px;border-bottom:0.5px solid var(--border);">
+          <div id="compliance-bar-wrap"></div>
+        </div>
+
+        <!-- Tabela de treinamentos -->
+        <div class="profile-table-section">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;">
+            <div class="section-div" style="margin:0;border:none;padding:0;">Treinamentos atribuídos</div>
+            <span style="font-family:var(--mono);font-size:10px;color:var(--text-3);" id="trainings-count"></span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:26%">Treinamento</th>
+                <th style="width:9%">Norma</th>
+                <th style="width:18%">Progresso</th>
+                <th style="width:11%">Conclusão</th>
+                <th style="width:12%">Vencimento</th>
+                <th style="width:12%">Status</th>
+                <th style="width:12%">Certificado</th>
+              </tr>
+            </thead>
+            <tbody id="profile-tbody"></tbody>
+          </table>
+        </div>
+
+      </div><!-- /panel -->
+    </div><!-- /content-area -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script src="../js/data.js"></script>
+<script src="../js/profile.js"></script>
+</body>
+</html>

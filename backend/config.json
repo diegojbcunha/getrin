@@ -1,0 +1,7 @@
+{
+  "supabaseUrl": "https://sua-url-do-supabase.supabase.co",
+  "supabaseAnonKey": "sua-chave-anonima-do-supabase",
+  "alertDays": 30,
+  "autoRecalculate": true,
+  "theme": "light"
+}

@@ -1,0 +1,53 @@
+/* =============================================================
+   GETRIN — Login
+   css/login.css
+   ============================================================= */
+
+.login-wrap {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; background: var(--bg);
+}
+
+.login-card {
+  width: 340px; background: var(--surface);
+  border: 0.5px solid var(--border-md); border-radius: var(--radius);
+  padding: 34px 30px; box-shadow: var(--shadow);
+}
+
+.login-logo-name {
+  font-size: 20px; font-weight: 500; letter-spacing: -0.03em;
+  display: flex; align-items: center; gap: 6px;
+}
+.login-logo-name span { color: var(--text-3); font-weight: 400; }
+
+.login-logo-sub {
+  font-family: var(--mono); font-size: 9.5px; color: var(--text-3);
+  letter-spacing: 0.07em; text-transform: uppercase; margin-top: 3px;
+}
+
+.login-divider { border: none; border-top: 0.5px solid var(--border); margin: 20px 0; }
+
+.role-selector {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 18px;
+}
+.role-option {
+  padding: 10px 6px; text-align: center; border: 0.5px solid var(--border-md);
+  border-radius: var(--radius); font-size: 11px; cursor: pointer;
+  color: var(--text-2); transition: all 0.15s; background: var(--surface);
+}
+.role-option:hover { border-color: var(--blue-200); background: var(--blue-50); }
+.role-option.selected {
+  border-color: var(--accent); color: var(--accent); background: var(--blue-50);
+}
+.role-option .ti { font-size: 18px; display: block; margin-bottom: 4px; }
+
+.login-btn {
+  width: 100%; padding: 10px; background: var(--accent); color: #fff;
+  border: none; border-radius: var(--radius); font-size: 13px; font-family: var(--ff);
+  cursor: pointer; font-weight: 500; letter-spacing: 0.01em; transition: background 0.15s;
+}
+.login-btn:hover { background: var(--blue-800); }
+
+.login-company { display: flex; align-items: center; gap: 7px; margin-top: 18px; }
+.login-company .ti  { font-size: 13px; color: var(--text-3); }
+.login-company span { font-size: 11px; color: var(--text-3); }

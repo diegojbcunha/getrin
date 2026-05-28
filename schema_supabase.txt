@@ -1,0 +1,104 @@
+-- ============================================================
+-- GETRIN — Esquema do Banco de Dados PostgreSQL (Supabase)
+-- Copie e cole este script no SQL Editor do seu projeto Supabase
+-- ============================================================
+
+-- Habilitar a extensão uuid-ossp para geração de UUIDs primários
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 1. TABELA: TRABALHADORES (workers)
+CREATE TABLE IF NOT EXISTS workers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    initials VARCHAR(10) NOT NULL,
+    matricula VARCHAR(50) UNIQUE NOT NULL,
+    role VARCHAR(150) NOT NULL,
+    sector VARCHAR(150) NOT NULL,
+    manager VARCHAR(155), -- Pode referenciar opcionalmente o nome de outro gestor
+    admission VARCHAR(50), -- Guardado como texto ou data formatada, ex: "Mar 2019"
+    email VARCHAR(255) UNIQUE,
+    phone VARCHAR(50),
+    compliance INTEGER DEFAULT 0 CHECK (compliance >= 0 AND compliance <= 100),
+    status VARCHAR(50) DEFAULT 'gray', -- 'green' (Conforme), 'amber' (Em risco), 'red' (Não conforme), 'gray' (Pendente)
+    status_label VARCHAR(100) DEFAULT 'Pendente',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. TABELA: CATÁLOGO DE TREINAMENTOS (trainings)
+CREATE TABLE IF NOT EXISTS trainings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    norm VARCHAR(50) NOT NULL, -- Ex: "NR-10", "NR-12", etc.
+    hours VARCHAR(50) NOT NULL, -- Ex: "40h", "16h"
+    validity VARCHAR(50) NOT NULL, -- Ex: "2 anos", "1 ano"
+    roles VARCHAR(255), -- Ex: "Eletricista, Manut."
+    mode VARCHAR(100) NOT NULL, -- Ex: "Presencial", "EAD", "Híbrido"
+    status VARCHAR(50) DEFAULT 'green', -- 'green' (Ativo), 'amber' (Em revisão), 'red' (Descontinuado)
+    status_label VARCHAR(100) DEFAULT 'Ativo',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. TABELA: ASSOCIAÇÃO DE TREINAMENTOS E TRABALHADORES (worker_trainings)
+-- Representa os treinamentos atribuídos a cada trabalhador
+CREATE TABLE IF NOT EXISTS worker_trainings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    worker_id UUID NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
+    training_id UUID NOT NULL REFERENCES trainings(id) ON DELETE CASCADE,
+    progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+    done VARCHAR(50) DEFAULT '—', -- Data de conclusão por extenso ou formatada
+    expires VARCHAR(50) DEFAULT '—', -- Data de vencimento por extenso ou formatada
+    expires_color VARCHAR(50) DEFAULT '', -- 'green', 'amber' ou vazio
+    status VARCHAR(50) DEFAULT 'gray', -- 'green' (Válido), 'amber' (Vencido), 'blue' (Em andamento), 'gray' (Pendente)
+    status_label VARCHAR(100) DEFAULT 'Pendente',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_worker_training UNIQUE (worker_id, training_id)
+);
+
+-- 4. TABELA: ALERTAS GERAIS (alerts)
+CREATE TABLE IF NOT EXISTS alerts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    norm VARCHAR(50) NOT NULL, -- Ex: "NR-12"
+    title VARCHAR(255) NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    days INTEGER NOT NULL,
+    level VARCHAR(50) NOT NULL, -- 'urgent' ou 'monitor'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- INSERÇÃO DE DADOS DE EXEMPLO (MOCK DATA)
+-- ============================================================
+
+-- Inserindo Treinamentos Padrões
+INSERT INTO trainings (id, name, norm, hours, validity, roles, mode, status, status_label) VALUES
+('a0000000-0000-0000-0000-000000000001', 'Segurança em instalações elétricas', 'NR-10', '40h', '2 anos', 'Eletricista, Manut.', 'Presencial', 'green', 'Ativo'),
+('a0000000-0000-0000-0000-000000000002', 'Máquinas e equipamentos', 'NR-12', '16h', '1 ano', 'Operador, Técnico', 'EAD', 'green', 'Ativo'),
+('a0000000-0000-0000-0000-000000000003', 'Trabalho em altura', 'NR-35', '8h', '2 anos', 'Manut., Construção', 'Híbrido', 'green', 'Ativo'),
+('a0000000-0000-0000-0000-000000000004', 'Primeiros socorros e emergências', 'NR-07', '8h', '1 ano', 'Todos colaboradores', 'EAD', 'amber', 'Em revisão'),
+('a0000000-0000-0000-0000-000000000005', 'Espaço confinado', 'NR-33', '16h', '1 ano', 'Manutenção', 'Presencial', 'green', 'Ativo'),
+('a0000000-0000-0000-0000-000000000006', 'Proteção contra incêndio', 'NR-23', '4h', '2 anos', 'Brigada de incêndio', 'EAD', 'red', 'Descontinuado'),
+('a0000000-0000-0000-0000-000000000007', 'Ergonomia no trabalho', 'NR-17', '4h', '2 anos', 'Todos colaboradores', 'EAD', 'green', 'Ativo'),
+('a0000000-0000-0000-0000-000000000008', 'Equipamentos de proteção individual', 'NR-06', '4h', '1 ano', 'Todos colaboradores', 'EAD', 'green', 'Ativo')
+ON CONFLICT (id) DO NOTHING;
+
+-- Inserindo Trabalhadores de Exemplo
+INSERT INTO workers (id, name, initials, matricula, role, sector, manager, admission, email, phone, compliance, status, status_label) VALUES
+('b0000000-0000-0000-0000-000000000001', 'Carlos Alberto Mendes', 'CAM', '#00412', 'Eletricista Sênior', 'Infraestrutura', 'Paulo Henrique', 'Mar 2019', 'c.mendes@metalurgica.com.br', '(71) 99801-2233', 67, 'amber', 'Em risco'),
+('b0000000-0000-0000-0000-000000000002', 'Fernanda Rocha', 'FR', '#00389', 'Técnica de Segurança', 'Manutenção', 'Lucas Andrade', 'Jan 2020', 'f.rocha@metalurgica.com.br', '(71) 99700-4455', 100, 'green', 'Conforme'),
+('b0000000-0000-0000-0000-000000000003', 'Maria Santos', 'MS', '#00451', 'Operadora de Prensa', 'Produção', 'Renata Lima', 'Jun 2021', 'm.santos@metalurgica.com.br', '(71) 98833-6677', 0, 'red', 'Não conforme')
+ON CONFLICT (id) DO NOTHING;
+
+-- Associando Treinamentos aos Trabalhadores
+INSERT INTO worker_trainings (worker_id, training_id, progress, done, expires, expires_color, status, status_label) VALUES
+('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 100, 'Jun 2024', 'Jun 2026', 'green', 'green', 'Válido'),
+('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002', 100, 'Ago 2023', 'Ago 2024', 'amber', 'amber', 'Vencido'),
+('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000003', 60, '—', '—', '', 'blue', 'Em andamento'),
+('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000004', 0, '—', '—', '', 'gray', 'Pendente')
+ON CONFLICT (worker_id, training_id) DO NOTHING;
+
+-- Inserindo Alertas de Exemplo
+INSERT INTO alerts (norm, title, count, days, level) VALUES
+('NR-12', 'Operadores de prensa (Linha B)', 14, 12, 'urgent'),
+('NR-35', 'Trabalho em altura (Manutenção)', 8, 19, 'urgent'),
+('NR-10', 'Eletricistas (Infraestrutura)', 16, 28, 'monitor')
+ON CONFLICT (id) DO NOTHING;

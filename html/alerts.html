@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getrin — Alertas</title>
+  <meta name="description" content="Painel de alertas de vencimento de treinamentos NR do sistema Getrin." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/alerts.css" />
+</head>
+<body>
+
+<div class="app">
+
+  <div id="sidebar-mount"></div>
+
+  <div class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title">Alertas</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn" onclick="loadAlerts()">
+          <i class="ti ti-refresh"></i>Atualizar
+        </button>
+        <button class="btn btn-primary" onclick="showToast('Exportando alertas...')">
+          <i class="ti ti-table-export"></i>Exportar
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content-area">
+
+      <!-- Métricas resumidas -->
+      <div class="alerts-metrics">
+        <div class="alert-metric-card urgent">
+          <div class="alert-metric-icon"><i class="ti ti-alert-triangle"></i></div>
+          <div>
+            <div class="alert-metric-val" id="count-urgent">—</div>
+            <div class="alert-metric-label">Urgentes <span>(até 15 dias)</span></div>
+          </div>
+        </div>
+        <div class="alert-metric-card warning">
+          <div class="alert-metric-icon"><i class="ti ti-clock-exclamation"></i></div>
+          <div>
+            <div class="alert-metric-val" id="count-warning">—</div>
+            <div class="alert-metric-label">Atenção <span>(16–30 dias)</span></div>
+          </div>
+        </div>
+        <div class="alert-metric-card monitor">
+          <div class="alert-metric-icon"><i class="ti ti-eye"></i></div>
+          <div>
+            <div class="alert-metric-val" id="count-monitor">—</div>
+            <div class="alert-metric-label">Monitorar <span>(31–60 dias)</span></div>
+          </div>
+        </div>
+        <div class="alert-metric-card expired">
+          <div class="alert-metric-icon"><i class="ti ti-x"></i></div>
+          <div>
+            <div class="alert-metric-val" id="count-expired">—</div>
+            <div class="alert-metric-label">Vencidos <span>(já expirados)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtros e busca -->
+      <div class="alerts-toolbar">
+        <input
+          class="filter-input"
+          id="alert-search"
+          placeholder="Buscar por norma, título ou setor..."
+          oninput="filterAlerts(this.value)"
+        />
+        <div class="alerts-filter-btns">
+          <button class="alert-filter-btn active" data-level="all"    onclick="setLevelFilter('all', this)">Todos</button>
+          <button class="alert-filter-btn urgent"  data-level="urgent"  onclick="setLevelFilter('urgent', this)">Urgentes</button>
+          <button class="alert-filter-btn warning" data-level="warning" onclick="setLevelFilter('warning', this)">Atenção</button>
+          <button class="alert-filter-btn monitor" data-level="monitor" onclick="setLevelFilter('monitor', this)">Monitorar</button>
+          <button class="alert-filter-btn expired" data-level="expired" onclick="setLevelFilter('expired', this)">Vencidos</button>
+        </div>
+        <span class="filters-count" id="alerts-count"></span>
+      </div>
+
+      <!-- Lista de alertas -->
+      <div class="alerts-list" id="alerts-list">
+        <div class="alerts-loading">
+          <i class="ti ti-loader-2"></i>Carregando alertas...
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="../js/data.js"></script>
+<script src="../js/alerts.js"></script>
+</body>
+</html>
