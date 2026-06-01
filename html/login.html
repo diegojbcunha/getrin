@@ -55,7 +55,7 @@
     </div>
 
     <button class="login-btn" onclick="doLogin()">Entrar no sistema</button>
-    <button class="login-btn" onclick="doSignup()" style="background:transparent; color:var(--primary); border: 1px solid var(--primary); margin-top: 8px;">Criar nova conta</button>
+    <button class="login-btn" onclick="openSignupModal()" style="background:transparent; color:var(--primary); border: 1px solid var(--primary); margin-top: 8px;">Criar nova conta</button>
 
     <!-- Empresa -->
     <div class="login-company">
@@ -63,6 +63,39 @@
       <span>Metalúrgica Nordeste S.A.</span>
     </div>
 
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-signup" style="display: none; align-items: center; justify-content: center; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 9999;">
+  <div class="modal-box" style="background: var(--surface); width: 100%; max-width: 400px; padding: 24px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h3 style="margin: 0; font-size: 18px; color: var(--text);">Criar nova conta</h3>
+      <i class="ti ti-x" style="cursor: pointer; font-size: 20px; color: var(--text-3);" onclick="closeSignupModal()"></i>
+    </div>
+    
+    <div id="signup-error" style="display:none; background: var(--red-100); color: var(--red-700); padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 16px;"></div>
+    <div id="signup-success" style="display:none; background: #dcfce7; color: #166534; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 16px;"></div>
+
+    <div class="form-field" style="margin-bottom: 16px;">
+      <label class="form-label">E-mail</label>
+      <input class="form-input" id="signup-email" type="email" placeholder="seu@email.com" />
+    </div>
+    <div class="form-field" style="margin-bottom: 16px;">
+      <label class="form-label">Senha</label>
+      <input class="form-input" id="signup-password" type="password" placeholder="Mínimo 6 caracteres" />
+    </div>
+    <div class="form-field" style="margin-bottom: 24px;">
+      <label class="form-label">Perfil de Acesso</label>
+      <select class="form-input" id="signup-role" style="width: 100%;">
+        <option value="worker">Trabalhador</option>
+        <option value="manager">Gestor</option>
+        <option value="admin">Administrador</option>
+      </select>
+    </div>
+    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+      <button class="btn" onclick="closeSignupModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-submit-signup" onclick="submitSignup()">Confirmar Criação</button>
+    </div>
   </div>
 </div>
 

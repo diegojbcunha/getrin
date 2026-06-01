@@ -28,18 +28,41 @@ app.get('/', (req, res) => {
 
 // ==========================================
 // ROTAS DE AUTENTICAÇÃO
+// ------------------------------------------
+// GUIA DE ACESSO E PERFIS (LOGINS PARA TESTE):
+// Como o sistema usa o Supabase Auth, você precisa primeiro CRIAR as contas 
+// clicando em "Criar nova conta" na tela de login. Use as seguintes regras 
+// de e-mail para que o sistema detecte o perfil correto automaticamente:
+//
+// 1. ADMIN: O e-mail deve conter a palavra "admin".
+//    -> Exemplo de login: admin@getrin.com.br
+//
+// 2. GESTOR: O e-mail deve conter a palavra "gestor" ou "manager".
+//    -> Exemplo de login: gestor@getrin.com.br
+//
+// 3. TRABALHADOR: Qualquer outro e-mail. Para testar o painel do funcionário
+//    com dados reais, use um e-mail que já existe na tabela de trabalhadores.
+//    -> Exemplo de login: f.rocha@metalurgica.com.br (Fernanda Rocha)
+//    -> Exemplo de login: c.mendes@metalurgica.com.br (Carlos Mendes)
+// ------------------------------------------
 // ==========================================
 
 // Cadastro de usuário
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
     }
 
-    // Usando supabase.auth.signUp para criar o usuário no DB
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Usando supabase.auth.signUp para criar o usuário no DB com o papel (role)
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        data: { role: role || 'worker' }
+      }
+    });
     if (error) {
       console.error('Supabase SignUp Error:', error);
       return res.status(401).json({ error: 'Erro ao criar conta. O e-mail pode já existir ou a senha é muito fraca.' });
@@ -153,6 +176,62 @@ app.get('/api/workers', async (req, res) => {
 
     if (error) throw error;
     res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obter o trabalhador autenticado pelo token
+app.get('/api/workers/me', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (!token) return res.status(401).json({ error: 'Não autenticado.' });
+
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData.user) return res.status(401).json({ error: 'Token inválido ou expirado.' });
+
+    const email = userData.user.email;
+
+    // Obter dados básicos do trabalhador por email
+    const { data: worker, error: workerError } = await supabase
+      .from('workers')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (workerError || !worker) {
+      return res.status(404).json({ error: 'Trabalhador não encontrado para este e-mail.' });
+    }
+
+    // Obter treinamentos associados a este trabalhador
+    const { data: trainings, error: trainingsError } = await supabase
+      .from('worker_trainings')
+      .select(`
+        id, progress, done, expires, expires_color, status, status_label,
+        trainings ( id, name, norm )
+      `)
+      .eq('worker_id', worker.id);
+
+    if (trainingsError) throw trainingsError;
+
+    const formattedWorker = {
+      ...worker,
+      trainings: trainings.map(t => ({
+        id: t.id,
+        training_id: t.trainings.id,
+        name: t.trainings.name,
+        norm: t.trainings.norm,
+        progress: t.progress,
+        done: t.done,
+        expires: t.expires,
+        expiresColor: t.expires_color,
+        status: t.status,
+        statusLabel: t.status_label
+      }))
+    };
+
+    res.json(formattedWorker);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

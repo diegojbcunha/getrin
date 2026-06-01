@@ -1,6 +1,21 @@
 /* =============================================================
    GETRIN — Login
    js/login.js
+   
+   GUIA DE ACESSO E PERFIS (LOGINS PARA TESTE):
+   Para testar, crie as contas clicando em "Criar nova conta".
+   O perfil é definido automaticamente com base no e-mail:
+   
+   1. ADMIN: O e-mail deve conter a palavra "admin".
+      -> Ex: admin@getrin.com.br
+   
+   2. GESTOR: O e-mail deve conter a palavra "gestor" ou "manager".
+      -> Ex: gestor@getrin.com.br
+   
+   3. TRABALHADOR: Qualquer outro e-mail. Para visualizar dados reais
+      no Portal, use e-mails que já existem no banco de dados.
+      -> Ex: f.rocha@metalurgica.com.br (Trabalhadora 100% conforme)
+      -> Ex: c.mendes@metalurgica.com.br (Trabalhador em risco)
    ============================================================= */
 
 /* Seleciona o perfil de acesso (clique nos cards de role) */
@@ -46,7 +61,7 @@ function redirectByRole(role) {
   if (role === 'worker') {
     window.location.href = '/html/portal.html';
   } else if (role === 'manager') {
-    window.location.href = '/html/profile.html';
+    window.location.href = '/html/dashboard.html';
   } else {
     window.location.href = '/html/dashboard.html';
   }
@@ -133,19 +148,36 @@ document.addEventListener('DOMContentLoaded', () => {
   if (emailInput) emailInput.value = '';
 });
 
-/* Cadastro - chama a API /api/auth/signup */
-async function doSignup() {
-  hideLoginError();
+/* Modais de Cadastro */
+function openSignupModal() {
+  document.getElementById('modal-signup').style.display = 'flex';
+  document.getElementById('signup-error').style.display = 'none';
+  document.getElementById('signup-success').style.display = 'none';
+  document.getElementById('signup-email').value = '';
+  document.getElementById('signup-password').value = '';
+}
 
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
+function closeSignupModal() {
+  document.getElementById('modal-signup').style.display = 'none';
+}
+
+async function submitSignup() {
+  const errEl = document.getElementById('signup-error');
+  const succEl = document.getElementById('signup-success');
+  errEl.style.display = 'none';
+  succEl.style.display = 'none';
+
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const role = document.getElementById('signup-role').value;
 
   if (!email || !password) {
-    showLoginError("Por favor, preencha o e-mail e a senha para criar a conta.");
+    errEl.textContent = "Por favor, preencha o e-mail e a senha.";
+    errEl.style.display = 'block';
     return;
   }
 
-  const btn = document.querySelectorAll('.login-btn')[1]; // O botão de criar conta
+  const btn = document.getElementById('btn-submit-signup');
   const oldText = btn.innerHTML;
   btn.innerHTML = `<i class="ti ti-loader-2" style="animation: spin 1s linear infinite;"></i> Criando...`;
   btn.disabled = true;
@@ -154,7 +186,7 @@ async function doSignup() {
     const res = await fetch(`${API_BASE}/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password, role })
     });
 
     const data = await res.json();
@@ -162,10 +194,22 @@ async function doSignup() {
       throw new Error(data.error || "Erro ao criar conta.");
     }
 
-    // Sucesso! Fazer login automaticamente
-    await doLogin();
+    // Sucesso!
+    succEl.textContent = "Conta criada com sucesso! Você já pode entrar no sistema.";
+    succEl.style.display = 'block';
+    
+    // Auto preenche o login principal
+    document.getElementById('email').value = email;
+    document.getElementById('password').value = password;
+    setLoginRole(role);
+
+    setTimeout(() => {
+      closeSignupModal();
+    }, 2500);
+
   } catch (err) {
-    showLoginError(err.message);
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
   } finally {
     btn.innerHTML = oldText;
     btn.disabled = false;

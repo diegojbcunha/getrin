@@ -7,22 +7,55 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!authGuard()) return;
   document.getElementById('sidebar-mount').innerHTML = renderSidebar('portal', true);
   try {
-    const res = await fetch(`${API_BASE}/workers/${State.selectedWorker}`, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error("Erro ao obter dados do trabalhador");
+    const res = await fetch(`${API_BASE}/workers/me`, { headers: getAuthHeaders() });
+    if (!res.ok) {
+      if (res.status === 404) {
+        throw new Error("Seu e-mail não está associado a nenhum trabalhador cadastrado. Entre em contato com seu gestor.");
+      }
+      throw new Error("Erro ao obter dados do trabalhador");
+    }
     const w = await res.json();
     
+    // Atualiza a barra lateral com o nome e badge corretos
+    document.getElementById('sidebar-mount').innerHTML = renderSidebar('portal', true);
     // Particiona os treinamentos do trabalhador
     const trainings = w.trainings || [];
     const pending = trainings.filter(t => t.status !== 'green');
     const completed = trainings.filter(t => t.status === 'green');
     
+    renderPortalBanner(w, pending);
     renderPortalPending(pending);
     renderPortalCompleted(completed);
   } catch (err) {
     console.error(err);
-    showToast("Erro ao carregar treinamentos do portal.");
+    showToast(err.message || "Erro ao carregar treinamentos do portal.");
   }
 });
+
+function renderPortalBanner(w, pendingList) {
+  const compEl = document.getElementById('portal-compliance');
+  const subEl = document.getElementById('portal-sub');
+  const badgeEl = document.getElementById('portal-badge');
+
+  if (compEl) {
+    compEl.textContent = `${w.compliance}%`;
+    compEl.className = 'portal-big-pct ' + 
+      (w.status === 'green' ? 'c-green' : w.status === 'amber' ? 'c-warn' : 'c-danger');
+  }
+
+  if (subEl) {
+    const expired = pendingList.filter(t => t.status === 'red' || t.status === 'amber').length;
+    const pendingCount = pendingList.length - expired;
+    let subParts = [];
+    if (pendingCount > 0) subParts.push(`${pendingCount} pendente${pendingCount > 1 ? 's' : ''}`);
+    if (expired > 0) subParts.push(`${expired} vencido${expired > 1 ? 's' : ''}`);
+    subEl.textContent = subParts.length > 0 ? subParts.join(' · ') : 'Todos os treinamentos em dia';
+  }
+
+  if (badgeEl) {
+    badgeEl.outerHTML = `<span id="portal-badge">${badge(w.status, w.status_label || w.statusLabel)}</span>`;
+  }
+}
 
 function renderPortalPending(list) {
   const tbody = document.getElementById('pending-tbody');

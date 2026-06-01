@@ -1,4 +1,4 @@
-﻿/* =============================================================
+/* =============================================================
    GETRIN — Dados compartilhados e utilitários
    js/data.js
    Carregue este arquivo em TODAS as páginas, antes dos outros JS.
@@ -425,10 +425,11 @@ function renderSidebar(activePage, workerMode = false) {
       <div class="sidebar-section-label">Gestão</div>
       ${navHtml}
     </div>
+    ${State.loginRole === 'admin' ? `
     <div class="sidebar-section">
       <div class="sidebar-section-label">Config.</div>
       <a href="/html/empresa.html" class="nav-item ${activePage==='empresa'?'active':''}"><i class="ti ti-building-factory-2"></i>Empresa</a>
-    </div>
+    </div>` : ''}
     <div class="sidebar-footer">
       <div class="user-row">
         <div class="user-avatar">${initials}</div>
