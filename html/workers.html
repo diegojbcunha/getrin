@@ -146,53 +146,52 @@
       <div class="form-grid-2">
         <div class="form-field">
           <label class="form-label">Nome completo</label>
-          <input class="form-input" placeholder="Ex: João da Silva" />
+          <input id="new-worker-name" class="form-input" placeholder="Ex: João da Silva" />
         </div>
         <div class="form-field">
           <label class="form-label">Matrícula</label>
-          <input class="form-input" placeholder="Ex: #00512" />
+          <input id="new-worker-matricula" class="form-input" placeholder="Ex: #00512" />
         </div>
       </div>
       <div class="form-grid-2">
         <div class="form-field">
           <label class="form-label">Função</label>
-          <input class="form-input" placeholder="Ex: Eletricista Pleno" />
+          <input id="new-worker-role" class="form-input" placeholder="Ex: Eletricista Pleno" />
         </div>
         <div class="form-field">
           <label class="form-label">Setor</label>
-          <select class="form-select">
-            <option>Infraestrutura</option>
-            <option>Produção</option>
-            <option>Manutenção</option>
-            <option>Logística</option>
-            <option>Qualidade</option>
-            <option>Administrativo</option>
+          <select id="new-worker-sector" class="form-select">
+            <option value="Infraestrutura">Infraestrutura</option>
+            <option value="Produção">Produção</option>
+            <option value="Manutenção">Manutenção</option>
+            <option value="Logística">Logística</option>
+            <option value="Qualidade">Qualidade</option>
+            <option value="Administrativo">Administrativo</option>
           </select>
         </div>
       </div>
       <div class="form-grid-2">
         <div class="form-field">
           <label class="form-label">Gestor responsável</label>
-          <select class="form-select">
-            <option>Paulo Henrique</option>
-            <option>Lucas Andrade</option>
-            <option>Renata Lima</option>
+          <select id="new-worker-manager" class="form-select">
+            <option value="Paulo Henrique">Paulo Henrique</option>
+            <option value="Lucas Andrade">Lucas Andrade</option>
+            <option value="Renata Lima">Renata Lima</option>
           </select>
         </div>
         <div class="form-field">
           <label class="form-label">Data de admissão</label>
-          <input class="form-input" type="date" />
+          <input id="new-worker-admission" class="form-input" type="date" />
         </div>
       </div>
       <div class="form-field">
         <label class="form-label">E-mail corporativo</label>
-        <input class="form-input" type="email" placeholder="joao@empresa.com.br" />
+        <input id="new-worker-email" class="form-input" type="email" placeholder="joao@empresa.com.br" />
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-new-worker')">Cancelar</button>
-      <button class="btn btn-primary"
-              onclick="submitModal('modal-new-worker','Trabalhador cadastrado com sucesso.')">
+      <button class="btn btn-primary" onclick="submitNewWorker()">
         Cadastrar
       </button>
     </div>

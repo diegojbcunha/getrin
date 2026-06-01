@@ -477,36 +477,40 @@ function injectSharedHTML() {
         <div class="modal-body">
           <div class="form-field">
             <label class="form-label">Nome do treinamento</label>
-            <input class="form-input" placeholder="Ex: Segurança em instalações elétricas" />
+            <input class="form-input" id="training-name" placeholder="Ex: Segurança em instalações elétricas" />
           </div>
           <div class="form-grid-2">
             <div class="form-field">
               <label class="form-label">Norma regulamentadora</label>
-              <select class="form-select"><option>NR-10</option><option>NR-12</option><option>NR-35</option><option>NR-07</option><option>NR-23</option><option>NR-33</option></select>
+              <select class="form-select" id="training-norm"><option>NR-10</option><option>NR-12</option><option>NR-35</option><option>NR-07</option><option>NR-23</option><option>NR-33</option></select>
             </div>
             <div class="form-field">
               <label class="form-label">Carga horária</label>
-              <input class="form-input" placeholder="Ex: 40h" />
+              <input class="form-input" id="training-hours" placeholder="Ex: 40h" />
             </div>
           </div>
           <div class="form-grid-2">
             <div class="form-field">
               <label class="form-label">Validade</label>
-              <select class="form-select"><option>6 meses</option><option>1 ano</option><option>2 anos</option></select>
+              <select class="form-select" id="training-validity"><option>6 meses</option><option>1 ano</option><option>2 anos</option></select>
             </div>
             <div class="form-field">
               <label class="form-label">Modalidade</label>
-              <select class="form-select"><option>Presencial</option><option>EAD</option><option>Híbrido</option></select>
+              <select class="form-select" id="training-mode"><option>Presencial</option><option>EAD</option><option>Híbrido</option></select>
             </div>
           </div>
           <div class="form-field">
             <label class="form-label">Funções designadas</label>
-            <input class="form-input" placeholder="Ex: Eletricista, Manutenção" />
+            <input class="form-input" id="training-roles" placeholder="Ex: Eletricista, Manutenção" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">E-mail do funcionário</label>
+            <input class="form-input" id="training-worker-email" type="email" placeholder="funcionario@empresa.com" />
           </div>
         </div>
         <div class="modal-footer">
           <button class="btn" onclick="closeModal('modal-training')">Cancelar</button>
-          <button class="btn btn-primary" onclick="submitModal('modal-training','Treinamento criado com sucesso.')">Criar treinamento</button>
+          <button class="btn btn-primary" onclick="submitTrainingModal()">Criar treinamento</button>
         </div>
       </div>
     </div>
@@ -520,29 +524,117 @@ function injectSharedHTML() {
         <div class="modal-body">
           <div class="form-field">
             <label class="form-label">Treinamento</label>
-            <select class="form-select">
-              <option>Segurança em instalações elétricas (NR-10)</option>
-              <option>Máquinas e equipamentos (NR-12)</option>
-              <option>Trabalho em altura (NR-35)</option>
-              <option>Primeiros socorros (NR-07)</option>
-            </select>
+            <select class="form-select" id="assign-training-id"></select>
+          </div>
+          <div class="form-field">
+            <label class="form-label">E-mail do funcionário</label>
+            <input class="form-input" id="assign-worker-email" type="email" placeholder="funcionario@empresa.com" />
           </div>
           <div class="form-field">
             <label class="form-label">Prazo de conclusão</label>
-            <input class="form-input" type="date" />
+            <input class="form-input" id="assign-deadline" type="date" />
           </div>
           <div class="form-field">
             <label class="form-label">Observações</label>
-            <input class="form-input" placeholder="Opcional" />
+            <input class="form-input" id="assign-notes" placeholder="Opcional" />
           </div>
         </div>
         <div class="modal-footer">
           <button class="btn" onclick="closeModal('modal-assign')">Cancelar</button>
-          <button class="btn btn-primary" onclick="submitModal('modal-assign','Treinamento atribuído com sucesso.')">Atribuir</button>
+          <button class="btn btn-primary" onclick="submitAssignModal()">Atribuir</button>
         </div>
       </div>
     </div>
   `);
 }
 
-document.addEventListener('DOMContentLoaded', injectSharedHTML);
+async function submitTrainingModal() {
+  const name = document.getElementById('training-name')?.value.trim() || '';
+  const norm = document.getElementById('training-norm')?.value || '';
+  const hours = document.getElementById('training-hours')?.value.trim() || '';
+  const validity = document.getElementById('training-validity')?.value || '';
+  const mode = document.getElementById('training-mode')?.value || '';
+  const roles = document.getElementById('training-roles')?.value.trim() || '';
+  const worker_email = document.getElementById('training-worker-email')?.value.trim() || '';
+
+  if (!name || !norm || !hours || !validity || !mode) {
+    showToast('Preencha os campos obrigatórios do treinamento.');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/trainings`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name, norm, hours, validity, roles, mode, worker_email })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Erro ao criar treinamento.');
+    }
+
+    closeModal('modal-training');
+    showToast(worker_email ? 'Treinamento criado e atribuído com sucesso.' : 'Treinamento criado com sucesso.');
+  } catch (error) {
+    showToast(error.message || 'Erro ao criar treinamento.');
+  }
+}
+
+async function submitAssignModal() {
+  const trainingId = document.getElementById('assign-training-id')?.value || '';
+  const worker_email = document.getElementById('assign-worker-email')?.value.trim() || '';
+  const deadline = document.getElementById('assign-deadline')?.value || '';
+  const notes = document.getElementById('assign-notes')?.value.trim() || '';
+
+  if (!trainingId || !worker_email) {
+    showToast('Informe o treinamento e o e-mail do funcionário.');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/worker-trainings`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        worker_email,
+        training_id: trainingId,
+        expires: deadline || '—',
+        done: notes || '—',
+        status: 'gray',
+        status_label: 'Pendente'
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Erro ao atribuir treinamento.');
+    }
+
+    closeModal('modal-assign');
+    showToast('Treinamento atribuído com sucesso.');
+  } catch (error) {
+    showToast(error.message || 'Erro ao atribuir treinamento.');
+  }
+}
+
+async function populateAssignTrainingSelect() {
+  const select = document.getElementById('assign-training-id');
+  if (!select) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/trainings`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+
+    const trainings = await res.json();
+    const options = trainings.map(t => `<option value="${t.id}">${t.name} (${t.norm})</option>`).join('');
+    select.innerHTML = `<option value="">Selecione...</option>${options}`;
+  } catch (_) {
+    // silencioso: o modal ainda funciona com opções vazias caso a API falhe
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  injectSharedHTML();
+  await populateAssignTrainingSelect();
+});

@@ -2,9 +2,10 @@
    GETRIN — Login
    js/login.js
    
-   GUIA DE ACESSO E PERFIS (LOGINS PARA TESTE):
-   Para testar, crie as contas clicando em "Criar nova conta".
-   O perfil é definido automaticamente com base no e-mail:
+  GUIA DE ACESSO E PERFIS (LOGINS PARA TESTE):
+  Para testar, crie as contas clicando em "Criar nova conta".
+  O login sempre usa o papel salvo no servidor; a tela não pode
+  elevar privilégios por conta própria.
    
    1. ADMIN: O e-mail deve conter a palavra "admin".
       -> Ex: admin@getrin.com.br
@@ -73,7 +74,6 @@ async function doLogin() {
 
   const email    = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
-  const role     = State.loginRole;
 
   if (!email || !password) {
     showLoginError('Preencha o e-mail e a senha para continuar.');
@@ -104,8 +104,8 @@ async function doLogin() {
     State.currentName     = data.user.name;
     State.currentInitials = data.user.initials;
 
-    /* Usa o papel selecionado pelo usuário na interface (ou o detectado pela API) */
-    const finalRole = role || data.user.role;
+    /* O papel final vem do servidor, não do que o usuário clicou na tela */
+    const finalRole = data.user.role;
     State.loginRole   = finalRole;
     State.currentRole = finalRole === 'admin'   ? 'Administrador'
                       : finalRole === 'manager' ? 'Gestor'
@@ -155,10 +155,26 @@ function openSignupModal() {
   document.getElementById('signup-success').style.display = 'none';
   document.getElementById('signup-email').value = '';
   document.getElementById('signup-password').value = '';
+  document.getElementById('signup-role').value = 'worker';
+  document.getElementById('signup-invite-code').value = '';
+  toggleSignupInviteField();
 }
 
 function closeSignupModal() {
   document.getElementById('modal-signup').style.display = 'none';
+}
+
+function toggleSignupInviteField() {
+  const role = document.getElementById('signup-role').value;
+  const inviteWrap = document.getElementById('signup-invite-wrap');
+  const inviteInput = document.getElementById('signup-invite-code');
+
+  if (!inviteWrap || !inviteInput) return;
+
+  const requiresInvite = role === 'manager' || role === 'admin';
+  inviteWrap.style.display = requiresInvite ? 'block' : 'none';
+  inviteInput.required = requiresInvite;
+  if (!requiresInvite) inviteInput.value = '';
 }
 
 async function submitSignup() {
@@ -170,6 +186,13 @@ async function submitSignup() {
   const email = document.getElementById('signup-email').value.trim();
   const password = document.getElementById('signup-password').value;
   const role = document.getElementById('signup-role').value;
+  const inviteCode = document.getElementById('signup-invite-code').value.trim();
+
+  if ((role === 'manager' || role === 'admin') && !inviteCode) {
+    errEl.textContent = 'Informe o código de convite para criar um perfil administrativo.';
+    errEl.style.display = 'block';
+    return;
+  }
 
   if (!email || !password) {
     errEl.textContent = "Por favor, preencha o e-mail e a senha.";
@@ -186,7 +209,7 @@ async function submitSignup() {
     const res = await fetch(`${API_BASE}/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, role })
+      body: JSON.stringify({ email, password, role, inviteCode })
     });
 
     const data = await res.json();

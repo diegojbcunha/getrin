@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const supabase = require('./supabaseClient');
 require('dotenv').config();
 
@@ -34,6 +35,11 @@ app.get('/', (req, res) => {
 // clicando em "Criar nova conta" na tela de login. Use as seguintes regras 
 // de e-mail para que o sistema detecte o perfil correto automaticamente:
 //
+// Regras de segurança para perfis privilegiados:
+// - worker: pode ser criado normalmente
+// - manager/admin: só podem ser criados com um código válido vindo de
+//   GETRIN_MANAGER_INVITE_CODE e GETRIN_ADMIN_INVITE_CODE no .env do backend
+//
 // 1. ADMIN: O e-mail deve conter a palavra "admin".
 //    -> Exemplo de login: admin@getrin.com.br
 //
@@ -47,28 +53,311 @@ app.get('/', (req, res) => {
 // ------------------------------------------
 // ==========================================
 
+// ---- Sistema de autenticação local (arquivo JSON) ----
+const USERS_FILE = path.join(__dirname, 'users.json');
+const SESSIONS_FILE = path.join(__dirname, 'sessions.json');
+const LOCAL_DB_FILE = path.join(__dirname, 'local_db.json');
+const PRIVILEGED_SIGNUP_CODES = {
+  manager: process.env.GETRIN_MANAGER_INVITE_CODE || '',
+  admin: process.env.GETRIN_ADMIN_INVITE_CODE || ''
+};
+
+function loadUsers() {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+    }
+  } catch (err) {
+    console.error('Erro ao carregar users.json:', err);
+  }
+  return {};
+}
+
+function saveUsers(users) {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Erro ao salvar users.json:', err);
+  }
+}
+
+function loadSessions() {
+  try {
+    if (fs.existsSync(SESSIONS_FILE)) {
+      return JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+    }
+  } catch (err) {
+    console.error('Erro ao carregar sessions.json:', err);
+  }
+  return {};
+}
+
+function saveSessions(sessions) {
+  try {
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Erro ao salvar sessions.json:', err);
+  }
+}
+
+function loadLocalDb() {
+  try {
+    if (fs.existsSync(LOCAL_DB_FILE)) {
+      const raw = JSON.parse(fs.readFileSync(LOCAL_DB_FILE, 'utf8'));
+      return {
+        trainings: Array.isArray(raw.trainings) ? raw.trainings : [],
+        assignments: Array.isArray(raw.assignments) ? raw.assignments : [],
+        workers: Array.isArray(raw.workers) ? raw.workers : []
+      };
+    }
+  } catch (err) {
+    console.error('Erro ao carregar local_db.json:', err);
+  }
+  return { trainings: [], assignments: [], workers: [] };
+}
+
+function saveLocalDb(db) {
+  try {
+    fs.writeFileSync(LOCAL_DB_FILE, JSON.stringify(db, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Erro ao salvar local_db.json:', err);
+  }
+}
+
+function addLocalWorker(email) {
+  const db = loadLocalDb();
+  const existingWorker = db.workers.find(worker => worker.email === email);
+  if (existingWorker) return existingWorker;
+
+  const localPart = (email || '').split('@')[0] || 'colaborador';
+  const initials = localPart
+    .split(/[._-]/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part.charAt(0).toUpperCase())
+    .join('') || 'CL';
+
+  const worker = {
+    id: `local-worker-${Date.now()}`,
+    name: formatNameFromEmail(email),
+    initials,
+    matricula: `#${Date.now().toString().slice(-5)}`,
+    role: 'Colaborador',
+    sector: '—',
+    manager: '—',
+    admission: new Date().toLocaleDateString('pt-BR'),
+    email,
+    phone: '—',
+    compliance: 0,
+    status: 'gray',
+    status_label: 'Pendente',
+    trainings: []
+  };
+
+  db.workers.push(worker);
+  saveLocalDb(db);
+  return worker;
+}
+
+function addLocalTraining(training) {
+  const db = loadLocalDb();
+  db.trainings.push(training);
+  saveLocalDb(db);
+  return training;
+}
+
+function addLocalAssignment(assignment) {
+  const db = loadLocalDb();
+  db.assignments.push(assignment);
+  saveLocalDb(db);
+  return assignment;
+}
+
+function getLocalAssignmentsByEmail(email) {
+  const db = loadLocalDb();
+  return db.assignments.filter(item => item.worker_email === email);
+}
+
+function getLocalTrainingById(trainingId) {
+  const db = loadLocalDb();
+  return db.trainings.find(training => training.id === trainingId) || null;
+}
+
+function createSession(user) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const sessions = loadSessions();
+  sessions[token] = {
+    email: user.email,
+    role: user.role,
+    name: user.name,
+    initials: makeInitials(user.name),
+    createdAt: new Date().toISOString()
+  };
+  saveSessions(sessions);
+  return token;
+}
+
+function getLocalSession(token) {
+  if (!token) return null;
+  const sessions = loadSessions();
+  return sessions[token] || null;
+}
+
+function deleteLocalSession(token) {
+  if (!token) return;
+  const sessions = loadSessions();
+  if (sessions[token]) {
+    delete sessions[token];
+    saveSessions(sessions);
+  }
+}
+
+async function findWorkerByEmail(email) {
+  if (!email) return null;
+  const { data, error } = await supabase
+    .from('workers')
+    .select('*')
+    .eq('email', email)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+async function ensureWorkerRecord(email) {
+  const existingWorker = await findWorkerByEmail(email);
+  if (existingWorker) return existingWorker;
+  // If worker not found in Supabase, create a local worker record instead
+  // (some deployments restrict writes to Supabase via RLS)
+  return addLocalWorker(email);
+}
+
+async function getOrCreateAuthUserByEmail(email) {
+  if (!email) throw new Error('E-mail é obrigatório para criar o usuário do Supabase.');
+
+  const randomPassword = crypto.randomBytes(12).toString('hex');
+
+  try {
+    const { data, error } = await supabase.auth.admin.createUser({
+      email,
+      password: randomPassword,
+      email_confirm: true
+    });
+
+    if (error) throw error;
+    return data.user || data;
+  } catch (error) {
+    const message = String(error?.message || '');
+
+    // Se o usuário já existe, localiza pela API administrativa em vez de consultar auth.users como tabela.
+    if (message.toLowerCase().includes('already registered') || message.toLowerCase().includes('already exists')) {
+      const { data, error: listError } = await supabase.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000
+      });
+
+      if (listError) throw listError;
+
+      const existingUser = (data?.users || []).find(user => user.email === email);
+      if (existingUser) return existingUser;
+    }
+
+    throw error;
+  }
+}
+
+async function addTrainingAssignmentByEmail({ email, trainingId, progress, done, expires, status, statusLabel }) {
+  const worker = await ensureWorkerRecord(email);
+
+  // Try to insert in Supabase; if it fails (RLS), fall back to local DB
+  try {
+    const { data, error } = await supabase
+      .from('worker_trainings')
+      .insert([{
+        worker_id: worker.id,
+        training_id: trainingId,
+        progress: progress || 0,
+        done: done || '—',
+        expires: expires || '—',
+        status: status || 'gray',
+        status_label: statusLabel || 'Pendente'
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    await recalculateCompliance(worker.id);
+    return { worker, assignment: data };
+  } catch (err) {
+    const localAssign = addLocalAssignment({
+      id: `local-assignment-${Date.now()}`,
+      worker_email: worker.email,
+      worker_id: worker.id,
+      training_id: trainingId,
+      progress: progress || 0,
+      done: done || '—',
+      expires: expires || '—',
+      status: status || 'gray',
+      status_label: statusLabel || 'Pendente'
+    });
+    return { worker, assignment: localAssign };
+  }
+}
+
+function hashPassword(password) {
+  const crypto = require('crypto');
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+function isPrivilegedSignupAllowed(role, inviteCode) {
+  const expectedCode = PRIVILEGED_SIGNUP_CODES[role];
+  return Boolean(expectedCode && inviteCode && inviteCode.trim() === expectedCode);
+}
+
 // Cadastro de usuário
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { email, password, role, inviteCode } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
     }
 
-    // Usando supabase.auth.signUp para criar o usuário no DB com o papel (role)
-    const { data, error } = await supabase.auth.signUp({ 
-      email, 
-      password,
-      options: {
-        data: { role: role || 'worker' }
-      }
-    });
-    if (error) {
-      console.error('Supabase SignUp Error:', error);
-      return res.status(401).json({ error: 'Erro ao criar conta. O e-mail pode já existir ou a senha é muito fraca.' });
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'A senha deve ter no mínimo 6 caracteres.' });
     }
 
-    res.json({ message: 'Conta criada com sucesso!', user: data.user });
+    const users = loadUsers();
+    if (users[email]) {
+      return res.status(400).json({ error: 'Este e-mail já foi registrado.' });
+    }
+
+    const requestedRole = ['worker', 'manager', 'admin'].includes(role) ? role : 'worker';
+    if (requestedRole !== 'worker' && !isPrivilegedSignupAllowed(requestedRole, inviteCode)) {
+      return res.status(403).json({
+        error: 'Criação de contas administrativas exige um código de convite válido.'
+      });
+    }
+
+    const hashedPassword = hashPassword(password);
+    const name = formatNameFromEmail(email);
+
+    users[email] = {
+      email,
+      password: hashedPassword,
+      role: requestedRole,
+      name,
+      createdAt: new Date().toISOString()
+    };
+
+    saveUsers(users);
+
+    res.json({ 
+      message: 'Conta criada com sucesso!', 
+      user: { 
+        email, 
+        name,
+        role: requestedRole
+      } 
+    });
   } catch (err) {
     console.error('Erro no cadastro:', err);
     res.status(500).json({ error: 'Erro interno no servidor.' });
@@ -83,23 +372,22 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
+    const users = loadUsers();
+    const user = users[email];
+
+    if (!user || user.password !== hashPassword(password)) {
       return res.status(401).json({ error: 'Credenciais inválidas. Verifique seu e-mail e senha.' });
     }
 
-    const user = data.user;
-    const session = data.session;
-
-    // Detectar papel do usuário pelo e-mail (ou metadata se configurado no Supabase)
-    const role = user.user_metadata?.role || detectRoleByEmail(email);
-    const name = user.user_metadata?.name || formatNameFromEmail(email);
+    const token = createSession(user);
+    const role = user.role;
+    const name = user.name;
     const initials = makeInitials(name);
 
     res.json({
-      token: session.access_token,
+      token: token,
       user: {
-        id: user.id,
+        id: email,
         email: user.email,
         name,
         initials,
@@ -115,7 +403,9 @@ app.post('/api/auth/login', async (req, res) => {
 // Logout
 app.post('/api/auth/logout', async (req, res) => {
   try {
-    await supabase.auth.signOut();
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.replace('Bearer ', '').trim();
+    deleteLocalSession(token);
     res.json({ message: 'Logout realizado com sucesso.' });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao realizar logout.' });
@@ -128,6 +418,18 @@ app.get('/api/auth/me', async (req, res) => {
     const authHeader = req.headers['authorization'] || '';
     const token = authHeader.replace('Bearer ', '').trim();
     if (!token) return res.status(401).json({ error: 'Não autenticado.' });
+
+    const localSession = getLocalSession(token);
+    if (localSession) {
+      res.json({
+        id: localSession.email,
+        email: localSession.email,
+        name: localSession.name,
+        initials: localSession.initials,
+        role: localSession.role
+      });
+      return;
+    }
 
     const { data, error } = await supabase.auth.getUser(token);
     if (error || !data.user) return res.status(401).json({ error: 'Token inválido ou expirado.' });
@@ -188,36 +490,53 @@ app.get('/api/workers/me', async (req, res) => {
     const token = authHeader.replace('Bearer ', '').trim();
     if (!token) return res.status(401).json({ error: 'Não autenticado.' });
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !userData.user) return res.status(401).json({ error: 'Token inválido ou expirado.' });
-
-    const email = userData.user.email;
-
-    // Obter dados básicos do trabalhador por email
-    const { data: worker, error: workerError } = await supabase
-      .from('workers')
-      .select('*')
-      .eq('email', email)
-      .single();
-
-    if (workerError || !worker) {
-      return res.status(404).json({ error: 'Trabalhador não encontrado para este e-mail.' });
+    const localSession = getLocalSession(token);
+    let email = localSession ? localSession.email : '';
+    if (!email) {
+      const { data: userData, error: userError } = await supabase.auth.getUser(token);
+      if (userError || !userData.user) return res.status(401).json({ error: 'Token inválido ou expirado.' });
+      email = userData.user.email;
     }
 
+    // Obter dados básicos do trabalhador por email
+    const worker = await ensureWorkerRecord(email);
+
     // Obter treinamentos associados a este trabalhador
-    const { data: trainings, error: trainingsError } = await supabase
-      .from('worker_trainings')
-      .select(`
-        id, progress, done, expires, expires_color, status, status_label,
-        trainings ( id, name, norm )
-      `)
-      .eq('worker_id', worker.id);
+    let formattedTrainings = [];
 
-    if (trainingsError) throw trainingsError;
+    // Primeiro, buscar atribuições locais por e-mail (se houver)
+    const localAssignments = getLocalAssignmentsByEmail(email || '');
 
-    const formattedWorker = {
-      ...worker,
-      trainings: trainings.map(t => ({
+    // Se for um worker local (criado no fallback), não tentamos buscar worker_trainings no Supabase
+    if (String(worker.id).startsWith('local-worker-')) {
+      formattedTrainings = localAssignments.map(t => {
+        const trainingMeta = getLocalTrainingById(t.training_id) || { id: t.training_id, name: t.training_name || 'Treinamento', norm: t.training_norm || '—' };
+        return {
+          id: t.id,
+          training_id: trainingMeta.id,
+          name: trainingMeta.name,
+          norm: trainingMeta.norm,
+          progress: t.progress,
+          done: t.done,
+          expires: t.expires,
+          expiresColor: t.expires_color || null,
+          status: t.status,
+          statusLabel: t.status_label
+        };
+      });
+    } else {
+      // Para workers do Supabase, buscar os registros lá e depois anexar eventuais atribuições locais
+      const { data: trainings, error: trainingsError } = await supabase
+        .from('worker_trainings')
+        .select(`
+          id, progress, done, expires, expires_color, status, status_label,
+          trainings ( id, name, norm )
+        `)
+        .eq('worker_id', worker.id);
+
+      if (trainingsError) throw trainingsError;
+
+      formattedTrainings = (trainings || []).map(t => ({
         id: t.id,
         training_id: t.trainings.id,
         name: t.trainings.name,
@@ -228,7 +547,35 @@ app.get('/api/workers/me', async (req, res) => {
         expiresColor: t.expires_color,
         status: t.status,
         statusLabel: t.status_label
-      }))
+      }));
+
+      // Anexar atribuições locais (caso o gestor tenha criado alguma por e-mail)
+      const extraLocal = localAssignments.map(t => {
+        const trainingMeta = getLocalTrainingById(t.training_id) || { id: t.training_id, name: t.training_name || 'Treinamento', norm: t.training_norm || '—' };
+        return {
+          id: t.id,
+          training_id: trainingMeta.id,
+          name: trainingMeta.name,
+          norm: trainingMeta.norm,
+          progress: t.progress,
+          done: t.done,
+          expires: t.expires,
+          expiresColor: t.expires_color || null,
+          status: t.status,
+          statusLabel: t.status_label
+        };
+      });
+
+      // Evitar duplicatas simples: se já existe training_id igual, não duplicar
+      const existingTrainingIds = new Set(formattedTrainings.map(t => t.training_id));
+      for (const item of extraLocal) {
+        if (!existingTrainingIds.has(item.training_id)) formattedTrainings.push(item);
+      }
+    }
+
+    const formattedWorker = {
+      ...worker,
+      trainings: formattedTrainings
     };
 
     res.json(formattedWorker);
@@ -299,10 +646,17 @@ app.get('/api/workers/:id', async (req, res) => {
 app.post('/api/workers', async (req, res) => {
   try {
     const { name, initials, matricula, role, sector, manager, admission, email, phone } = req.body;
-    
+    if (!email) {
+      return res.status(400).json({ error: 'E-mail é obrigatório para cadastrar trabalhador.' });
+    }
+
+    const authUser = await getOrCreateAuthUserByEmail(email);
+    const workerId = authUser.id;
+
     const { data, error } = await supabase
       .from('workers')
-      .insert([{ 
+      .upsert([{ 
+        id: workerId,
         name, 
         initials, 
         matricula, 
@@ -315,7 +669,7 @@ app.post('/api/workers', async (req, res) => {
         compliance: 0,
         status: 'gray',
         status_label: 'Pendente'
-      }])
+      }], { onConflict: 'id' })
       .select()
       .single();
 
@@ -375,7 +729,9 @@ app.get('/api/trainings', async (req, res) => {
       .order('name', { ascending: true });
 
     if (error) throw error;
-    res.json(data);
+
+    const localDb = loadLocalDb();
+    res.json([...(data || []), ...localDb.trainings]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -384,16 +740,40 @@ app.get('/api/trainings', async (req, res) => {
 // Criar um novo treinamento no catálogo
 app.post('/api/trainings', async (req, res) => {
   try {
-    const { name, norm, hours, validity, roles, mode } = req.body;
-    
-    const { data, error } = await supabase
-      .from('trainings')
-      .insert([{ name, norm, hours, validity, roles, mode, status: 'green', status_label: 'Ativo' }])
-      .select()
-      .single();
+    const { name, norm, hours, validity, roles, mode, worker_email } = req.body;
 
-    if (error) throw error;
-    res.status(201).json(data);
+    const training = {
+      id: `local-training-${Date.now()}`,
+      name,
+      norm,
+      hours,
+      validity,
+      roles,
+      mode,
+      status: 'green',
+      status_label: 'Ativo',
+      source: 'local'
+    };
+
+    addLocalTraining(training);
+
+    let assignment = null;
+    if (worker_email) {
+      const worker = addLocalWorker(worker_email);
+      assignment = addLocalAssignment({
+        id: `local-assignment-${Date.now()}`,
+        worker_email: worker.email,
+        worker_id: worker.id,
+        training_id: training.id,
+        progress: 0,
+        done: '—',
+        expires: '—',
+        status: 'gray',
+        status_label: 'Pendente'
+      });
+    }
+
+    res.status(201).json({ training, assignment });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -406,28 +786,42 @@ app.post('/api/trainings', async (req, res) => {
 // Atribuir treinamento a um trabalhador
 app.post('/api/worker-trainings', async (req, res) => {
   try {
-    const { worker_id, training_id, progress, done, expires, status, status_label } = req.body;
-    
-    const { data, error } = await supabase
-      .from('worker_trainings')
-      .insert([{
-        worker_id,
-        training_id,
-        progress: progress || 0,
-        done: done || '—',
-        expires: expires || '—',
-        status: status || 'gray',
-        status_label: status_label || 'Pendente'
-      }])
-      .select()
-      .single();
+    const { worker_id, worker_email, training_id, progress, done, expires, status, status_label } = req.body;
 
-    if (error) throw error;
-    
-    // Atualizar a taxa de conformidade geral do trabalhador de forma reativa
-    await recalculateCompliance(worker_id);
+    if (!worker_id && !worker_email) {
+      return res.status(400).json({ error: 'worker_id ou worker_email é obrigatório.' });
+    }
 
-    res.status(201).json(data);
+    let workerEmail = worker_email || '';
+    if (!workerEmail && worker_id) {
+      const { data: workerRow, error: workerError } = await supabase
+        .from('workers')
+        .select('email')
+        .eq('id', worker_id)
+        .maybeSingle();
+      if (!workerError && workerRow?.email) {
+        workerEmail = workerRow.email;
+      }
+    }
+
+    const localWorker = addLocalWorker(workerEmail || `worker-${worker_id || Date.now()}@local`);
+    const training = getLocalTrainingById(training_id) || { id: training_id, name: 'Treinamento', norm: '—' };
+
+    const assignment = addLocalAssignment({
+      id: `local-assignment-${Date.now()}`,
+      worker_email: localWorker.email,
+      worker_id: localWorker.id,
+      training_id: training.id,
+      training_name: training.name,
+      training_norm: training.norm,
+      progress: progress || 0,
+      done: done || '—',
+      expires: expires || '—',
+      status: status || 'gray',
+      status_label: status_label || 'Pendente'
+    });
+
+    res.status(201).json(assignment);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -731,7 +1125,19 @@ app.get('/login', (req, res) => {
 });
 
 // Iniciar servidor
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Servidor rodando com sucesso na porta ${PORT}`);
   console.log(`Acesse o sistema em: http://localhost:${PORT}`);
+});
+
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`A porta ${PORT} já está em uso. Provavelmente já existe outra instância do backend rodando.`);
+    console.error('Feche o processo antigo ou libere a porta antes de iniciar outro servidor.');
+    process.exit(0);
+    return;
+  }
+
+  console.error('Erro ao iniciar o servidor:', error);
+  process.exit(1);
 });

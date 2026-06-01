@@ -86,11 +86,15 @@
     </div>
     <div class="form-field" style="margin-bottom: 24px;">
       <label class="form-label">Perfil de Acesso</label>
-      <select class="form-input" id="signup-role" style="width: 100%;">
+      <select class="form-input" id="signup-role" style="width: 100%;" onchange="toggleSignupInviteField()">
         <option value="worker">Trabalhador</option>
         <option value="manager">Gestor</option>
         <option value="admin">Administrador</option>
       </select>
+    </div>
+    <div class="form-field" id="signup-invite-wrap" style="display:none; margin-bottom: 24px;">
+      <label class="form-label">Código de convite</label>
+      <input class="form-input" id="signup-invite-code" type="text" placeholder="Código fornecido pela administração" />
     </div>
     <div style="display: flex; gap: 12px; justify-content: flex-end;">
       <button class="btn" onclick="closeSignupModal()">Cancelar</button>

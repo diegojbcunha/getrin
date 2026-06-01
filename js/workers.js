@@ -90,6 +90,55 @@ function openWorker(id) {
   window.location.href = '/html/profile.html';
 }
 
+async function submitNewWorker() {
+  const name = document.getElementById('new-worker-name')?.value.trim() || '';
+  const matricula = document.getElementById('new-worker-matricula')?.value.trim() || '';
+  const role = document.getElementById('new-worker-role')?.value.trim() || '';
+  const sector = document.getElementById('new-worker-sector')?.value || '';
+  const manager = document.getElementById('new-worker-manager')?.value || '';
+  const admission = document.getElementById('new-worker-admission')?.value || '';
+  const email = document.getElementById('new-worker-email')?.value.trim() || '';
+
+  if (!name || !email) {
+    showToast('Informe o nome e e-mail do trabalhador.');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/workers`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        name,
+        initials: name.split(' ').map(p => p[0].toUpperCase()).slice(0, 2).join(''),
+        matricula,
+        role,
+        sector,
+        manager,
+        admission,
+        email,
+        phone: '—'
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Erro ao cadastrar trabalhador.');
+    }
+
+    workersData.unshift(data);
+    filteredWorkers = [...workersData];
+    renderWorkerStats();
+    renderWorkerTable(filteredWorkers);
+
+    closeModal('modal-new-worker');
+    showToast('Trabalhador cadastrado com sucesso.');
+  } catch (err) {
+    console.error(err);
+    showToast(err.message || 'Erro ao cadastrar trabalhador.');
+  }
+}
+
 /* ---- Busca em tempo real ---- */
 function filterWorkers(query) {
   applyFilters(query, getActiveStatusFilter());

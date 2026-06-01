@@ -1,0 +1,37 @@
+{
+  "914634e9a90f284a36f99879aa6099ad672d7c8ccd760a0d2d99d74a872a6e08": {
+    "email": "admin.sistema@metalurgica.com.br",
+    "role": "admin",
+    "name": "Admin Sistema",
+    "initials": "AS",
+    "createdAt": "2026-06-01T23:06:05.171Z"
+  },
+  "8cee5e5966bc68c9afe1581fdfde9cf5ee831588e72d77b0b83dd1392d9de42e": {
+    "email": "ryangestor@email.com",
+    "role": "manager",
+    "name": "Ryangestor",
+    "initials": "R",
+    "createdAt": "2026-06-01T23:12:31.561Z"
+  },
+  "d8a4b89c81dcd8fca7b87c17fb0824452cce6b478a8c4cf9c346ddbbc9158e13": {
+    "email": "ryangestor@email.com",
+    "role": "manager",
+    "name": "Ryangestor",
+    "initials": "R",
+    "createdAt": "2026-06-01T23:27:48.183Z"
+  },
+  "2a0b380e1a99978b8a68593649f75761c2dc662eedf0fcf0dcafd927d66d6c99": {
+    "email": "ryangestor@email.com",
+    "role": "manager",
+    "name": "Ryangestor",
+    "initials": "R",
+    "createdAt": "2026-06-01T23:32:52.076Z"
+  },
+  "1a2098db72a0e6613e0916fecc75ff818779e630b81306754e6d7437cd546ef6": {
+    "email": "ryangestor@email.com",
+    "role": "manager",
+    "name": "Ryangestor",
+    "initials": "R",
+    "createdAt": "2026-06-01T23:35:13.529Z"
+  }
+}
