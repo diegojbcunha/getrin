@@ -1,37 +1,30 @@
 {
-  "914634e9a90f284a36f99879aa6099ad672d7c8ccd760a0d2d99d74a872a6e08": {
-    "email": "admin.sistema@metalurgica.com.br",
+  "f0ee13e1e3a06095b9bdce95785c894a6512b0effade2fc46d0d2668f4877c426661d8a588b46f0259f7632d7a65f36c": {
+    "email": "teteu@gmail.com",
     "role": "admin",
-    "name": "Admin Sistema",
-    "initials": "AS",
-    "createdAt": "2026-06-01T23:06:05.171Z"
+    "name": "Teteu",
+    "initials": "T",
+    "createdAt": "2026-06-02T22:19:04.633Z"
   },
-  "8cee5e5966bc68c9afe1581fdfde9cf5ee831588e72d77b0b83dd1392d9de42e": {
-    "email": "ryangestor@email.com",
-    "role": "manager",
-    "name": "Ryangestor",
-    "initials": "R",
-    "createdAt": "2026-06-01T23:12:31.561Z"
+  "fc8fbf8c04ceb238669814a5cbdb7ab91eb584d3c828b0d3c5ed9fbc2f2be3056a950c40a8d6caf4cea7f61f1365c72b": {
+    "email": "teteu@gmail.com",
+    "role": "admin",
+    "name": "Teteu",
+    "initials": "T",
+    "createdAt": "2026-06-02T22:29:18.684Z"
   },
-  "d8a4b89c81dcd8fca7b87c17fb0824452cce6b478a8c4cf9c346ddbbc9158e13": {
-    "email": "ryangestor@email.com",
-    "role": "manager",
-    "name": "Ryangestor",
-    "initials": "R",
-    "createdAt": "2026-06-01T23:27:48.183Z"
+  "dcdba00a0a58f8b3fa2270114cc9402bd8ac7165ab1bd76d94025d4707b5871d15a047ce4ac97fa4c39655fd81644186": {
+    "email": "teteu@gmail.com",
+    "role": "admin",
+    "name": "Teteu",
+    "initials": "T",
+    "createdAt": "2026-06-02T22:35:35.278Z"
   },
-  "2a0b380e1a99978b8a68593649f75761c2dc662eedf0fcf0dcafd927d66d6c99": {
-    "email": "ryangestor@email.com",
-    "role": "manager",
-    "name": "Ryangestor",
-    "initials": "R",
-    "createdAt": "2026-06-01T23:32:52.076Z"
-  },
-  "1a2098db72a0e6613e0916fecc75ff818779e630b81306754e6d7437cd546ef6": {
-    "email": "ryangestor@email.com",
-    "role": "manager",
-    "name": "Ryangestor",
-    "initials": "R",
-    "createdAt": "2026-06-01T23:35:13.529Z"
+  "3396b625fa69aa46331909280ea942451f858d1adab1f8ec0ec2a5b14d6998612d71a23a1fc2bbe270e1b6bbe7ad5d0f": {
+    "email": "teteu@gmail.com",
+    "role": "admin",
+    "name": "Teteu",
+    "initials": "T",
+    "createdAt": "2026-06-02T22:36:10.065Z"
   }
 }

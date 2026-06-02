@@ -1,159 +1,221 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
+/* =============================================================
+   GETRIN — Backend API
+   backend/server.js
+
+   ARQUITETURA DE AUTENTICAÇÃO:
+   O sistema usa autenticação LOCAL (users.json + sessions.json),
+   sem depender do Supabase Auth. Os dados de negócio (workers,
+   trainings, worker_trainings, alerts) ficam no Supabase.
+   Existe um fallback para local_db.json caso o Supabase esteja
+   indisponível ou restringido por RLS.
+
+   PERFIS DE ACESSO:
+   - worker  → qualquer e-mail
+   - manager → exige GETRIN_MANAGER_INVITE_CODE no cadastro
+   - admin   → exige GETRIN_ADMIN_INVITE_CODE no cadastro
+   ============================================================= */
+
+'use strict';
+
+const express  = require('express');
+const cors     = require('cors');
+const path     = require('path');
+const fs       = require('fs');
+const crypto   = require('crypto');
 const supabase = require('./supabaseClient');
 require('dotenv').config();
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3003;
-
-// Raiz do projeto (um nível acima de /backend)
 const PROJECT_ROOT = path.join(__dirname, '..');
 
-// Middlewares
-app.use(cors());
-app.use(express.json());
+// ── Middlewares ────────────────────────────────────────────────
+app.use(cors({ origin: process.env.ALLOWED_ORIGIN || '*' }));
+app.use(express.json({ limit: '2mb' }));
 
-// Serve arquivos estáticos do frontend (css, js, html, etc.)
+// Arquivos estáticos do frontend
 app.use('/css',  express.static(path.join(PROJECT_ROOT, 'css')));
 app.use('/js',   express.static(path.join(PROJECT_ROOT, 'js')));
 app.use('/html', express.static(path.join(PROJECT_ROOT, 'html')));
-app.use(express.static(PROJECT_ROOT)); // serve index.html da raiz
+app.use(express.static(PROJECT_ROOT));
 
-// Rota raiz — redireciona para o login
-app.get('/', (req, res) => {
-  res.redirect('/html/login.html');
-});
+app.get('/',      (_req, res) => res.redirect('/html/login.html'));
+app.get('/login', (_req, res) => res.redirect('/html/login.html'));
 
-// ==========================================
-// ROTAS DE AUTENTICAÇÃO
-// ------------------------------------------
-// GUIA DE ACESSO E PERFIS (LOGINS PARA TESTE):
-// Como o sistema usa o Supabase Auth, você precisa primeiro CRIAR as contas 
-// clicando em "Criar nova conta" na tela de login. Use as seguintes regras 
-// de e-mail para que o sistema detecte o perfil correto automaticamente:
-//
-// Regras de segurança para perfis privilegiados:
-// - worker: pode ser criado normalmente
-// - manager/admin: só podem ser criados com um código válido vindo de
-//   GETRIN_MANAGER_INVITE_CODE e GETRIN_ADMIN_INVITE_CODE no .env do backend
-//
-// 1. ADMIN: O e-mail deve conter a palavra "admin".
-//    -> Exemplo de login: admin@getrin.com.br
-//
-// 2. GESTOR: O e-mail deve conter a palavra "gestor" ou "manager".
-//    -> Exemplo de login: gestor@getrin.com.br
-//
-// 3. TRABALHADOR: Qualquer outro e-mail. Para testar o painel do funcionário
-//    com dados reais, use um e-mail que já existe na tabela de trabalhadores.
-//    -> Exemplo de login: f.rocha@metalurgica.com.br (Fernanda Rocha)
-//    -> Exemplo de login: c.mendes@metalurgica.com.br (Carlos Mendes)
-// ------------------------------------------
-// ==========================================
+// ═══════════════════════════════════════════════════════════════
+// ARMAZENAMENTO LOCAL (autenticação e fallback de dados)
+// ═══════════════════════════════════════════════════════════════
 
-// ---- Sistema de autenticação local (arquivo JSON) ----
-const USERS_FILE = path.join(__dirname, 'users.json');
+const USERS_FILE    = path.join(__dirname, 'users.json');
 const SESSIONS_FILE = path.join(__dirname, 'sessions.json');
 const LOCAL_DB_FILE = path.join(__dirname, 'local_db.json');
-const PRIVILEGED_SIGNUP_CODES = {
+
+const INVITE_CODES = {
   manager: process.env.GETRIN_MANAGER_INVITE_CODE || '',
-  admin: process.env.GETRIN_ADMIN_INVITE_CODE || ''
+  admin:   process.env.GETRIN_ADMIN_INVITE_CODE   || '',
 };
 
-function loadUsers() {
+// ── Helpers de arquivo ─────────────────────────────────────────
+function readJSON(filePath, defaultValue) {
   try {
-    if (fs.existsSync(USERS_FILE)) {
-      return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-    }
+    if (fs.existsSync(filePath))
+      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
   } catch (err) {
-    console.error('Erro ao carregar users.json:', err);
+    console.error(`Erro ao ler ${filePath}:`, err.message);
   }
-  return {};
+  return defaultValue;
 }
 
-function saveUsers(users) {
+function writeJSON(filePath, data) {
   try {
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
   } catch (err) {
-    console.error('Erro ao salvar users.json:', err);
-  }
-}
-
-function loadSessions() {
-  try {
-    if (fs.existsSync(SESSIONS_FILE)) {
-      return JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
-    }
-  } catch (err) {
-    console.error('Erro ao carregar sessions.json:', err);
-  }
-  return {};
-}
-
-function saveSessions(sessions) {
-  try {
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf8');
-  } catch (err) {
-    console.error('Erro ao salvar sessions.json:', err);
+    console.error(`Erro ao escrever ${filePath}:`, err.message);
   }
 }
 
-function loadLocalDb() {
-  try {
-    if (fs.existsSync(LOCAL_DB_FILE)) {
-      const raw = JSON.parse(fs.readFileSync(LOCAL_DB_FILE, 'utf8'));
-      return {
-        trainings: Array.isArray(raw.trainings) ? raw.trainings : [],
-        assignments: Array.isArray(raw.assignments) ? raw.assignments : [],
-        workers: Array.isArray(raw.workers) ? raw.workers : []
-      };
-    }
-  } catch (err) {
-    console.error('Erro ao carregar local_db.json:', err);
-  }
-  return { trainings: [], assignments: [], workers: [] };
+const loadUsers    = () => readJSON(USERS_FILE,    {});
+const saveUsers    = (d) => writeJSON(USERS_FILE,    d);
+const loadSessions = () => readJSON(SESSIONS_FILE, {});
+const saveSessions = (d) => writeJSON(SESSIONS_FILE, d);
+const loadLocalDb  = () => {
+  const raw = readJSON(LOCAL_DB_FILE, {});
+  return {
+    trainings:   Array.isArray(raw.trainings)   ? raw.trainings   : [],
+    assignments: Array.isArray(raw.assignments) ? raw.assignments : [],
+    workers:     Array.isArray(raw.workers)     ? raw.workers     : [],
+  };
+};
+const saveLocalDb = (d) => writeJSON(LOCAL_DB_FILE, d);
+
+// ── Helpers de senha e sessão ──────────────────────────────────
+/**
+ * Gera hash seguro com PBKDF2 + salt.
+ * Formato salvo: "salt:hash"
+ */
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, 100_000, 64, 'sha512').toString('hex');
+  return `${salt}:${hash}`;
 }
 
-function saveLocalDb(db) {
-  try {
-    fs.writeFileSync(LOCAL_DB_FILE, JSON.stringify(db, null, 2), 'utf8');
-  } catch (err) {
-    console.error('Erro ao salvar local_db.json:', err);
+function verifyPassword(password, stored) {
+  // Suporte a senhas antigas (SHA-256 sem salt, formato legado)
+  if (!stored.includes(':')) {
+    const legacyHash = crypto.createHash('sha256').update(password).digest('hex');
+    return legacyHash === stored;
   }
+  const [salt, hash] = stored.split(':');
+  const verify = crypto.pbkdf2Sync(password, salt, 100_000, 64, 'sha512').toString('hex');
+  // Comparação em tempo constante para evitar timing attacks
+  return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(verify, 'hex'));
 }
 
+function createSession(user) {
+  const token    = crypto.randomBytes(48).toString('hex');
+  const sessions = loadSessions();
+  // Limpa sessões com mais de 8 horas automaticamente
+  const cutoff = Date.now() - 8 * 60 * 60 * 1000;
+  for (const [k, v] of Object.entries(sessions)) {
+    if (new Date(v.createdAt).getTime() < cutoff) delete sessions[k];
+  }
+  sessions[token] = {
+    email:     user.email,
+    role:      user.role,
+    name:      user.name,
+    initials:  makeInitials(user.name),
+    createdAt: new Date().toISOString(),
+  };
+  saveSessions(sessions);
+  return token;
+}
+
+function getSession(token) {
+  if (!token) return null;
+  const sessions = loadSessions();
+  const s = sessions[token];
+  if (!s) return null;
+  // Valida TTL de 8 horas
+  if (Date.now() - new Date(s.createdAt).getTime() > 8 * 60 * 60 * 1000) {
+    delete sessions[token];
+    saveSessions(sessions);
+    return null;
+  }
+  return s;
+}
+
+function deleteSession(token) {
+  if (!token) return;
+  const sessions = loadSessions();
+  delete sessions[token];
+  saveSessions(sessions);
+}
+
+function getTokenFromHeader(req) {
+  return (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '').trim();
+}
+
+// ── Middleware de autenticação ─────────────────────────────────
+/**
+ * Protege rotas exigindo sessão válida.
+ * Injeta req.session com os dados do usuário.
+ */
+function requireAuth(req, res, next) {
+  const token = getTokenFromHeader(req);
+  const session = getSession(token);
+  if (!session) return res.status(401).json({ error: 'Não autenticado. Faça login novamente.' });
+  req.session = session;
+  next();
+}
+
+/**
+ * Só permite acesso a gestores e admins.
+ */
+function requireManager(req, res, next) {
+  if (!['manager', 'admin'].includes(req.session?.role)) {
+    return res.status(403).json({ error: 'Acesso restrito a gestores e administradores.' });
+  }
+  next();
+}
+
+// ── Helpers de texto ───────────────────────────────────────────
+function makeInitials(name) {
+  return (name || '').split(' ').filter(Boolean).slice(0, 2)
+    .map(n => n[0].toUpperCase()).join('');
+}
+
+function formatNameFromEmail(email) {
+  if (!email) return 'Usuário';
+  return email.split('@')[0].split(/[._-]/)
+    .map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+}
+
+function isPrivilegedSignupAllowed(role, inviteCode) {
+  const expected = INVITE_CODES[role];
+  return Boolean(expected && inviteCode && inviteCode.trim() === expected);
+}
+
+// ── Helpers de local_db ────────────────────────────────────────
 function addLocalWorker(email) {
   const db = loadLocalDb();
-  const existingWorker = db.workers.find(worker => worker.email === email);
-  if (existingWorker) return existingWorker;
-
-  const localPart = (email || '').split('@')[0] || 'colaborador';
-  const initials = localPart
-    .split(/[._-]/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(part => part.charAt(0).toUpperCase())
-    .join('') || 'CL';
-
+  const existing = db.workers.find(w => w.email === email);
+  if (existing) return existing;
   const worker = {
-    id: `local-worker-${Date.now()}`,
-    name: formatNameFromEmail(email),
-    initials,
-    matricula: `#${Date.now().toString().slice(-5)}`,
-    role: 'Colaborador',
-    sector: '—',
-    manager: '—',
-    admission: new Date().toLocaleDateString('pt-BR'),
+    id:           `local-worker-${Date.now()}`,
+    name:         formatNameFromEmail(email),
+    initials:     makeInitials(formatNameFromEmail(email)),
+    matricula:    `#${Date.now().toString().slice(-5)}`,
+    role:         'Colaborador',
+    sector:       '—',
+    manager:      '—',
+    admission:    new Date().toLocaleDateString('pt-BR'),
     email,
-    phone: '—',
-    compliance: 0,
-    status: 'gray',
+    phone:        '—',
+    compliance:   0,
+    status:       'gray',
     status_label: 'Pendente',
-    trainings: []
+    trainings:    [],
   };
-
   db.workers.push(worker);
   saveLocalDb(db);
   return worker;
@@ -174,190 +236,68 @@ function addLocalAssignment(assignment) {
 }
 
 function getLocalAssignmentsByEmail(email) {
-  const db = loadLocalDb();
-  return db.assignments.filter(item => item.worker_email === email);
+  return loadLocalDb().assignments.filter(a => a.worker_email === email);
 }
 
-function getLocalTrainingById(trainingId) {
-  const db = loadLocalDb();
-  return db.trainings.find(training => training.id === trainingId) || null;
+function getLocalTrainingById(id) {
+  return loadLocalDb().trainings.find(t => t.id === id) || null;
 }
 
-function createSession(user) {
-  const token = crypto.randomBytes(32).toString('hex');
-  const sessions = loadSessions();
-  sessions[token] = {
-    email: user.email,
-    role: user.role,
-    name: user.name,
-    initials: makeInitials(user.name),
-    createdAt: new Date().toISOString()
-  };
-  saveSessions(sessions);
-  return token;
-}
-
-function getLocalSession(token) {
-  if (!token) return null;
-  const sessions = loadSessions();
-  return sessions[token] || null;
-}
-
-function deleteLocalSession(token) {
-  if (!token) return;
-  const sessions = loadSessions();
-  if (sessions[token]) {
-    delete sessions[token];
-    saveSessions(sessions);
-  }
-}
-
+// ── Helpers de Supabase ────────────────────────────────────────
 async function findWorkerByEmail(email) {
   if (!email) return null;
-  const { data, error } = await supabase
-    .from('workers')
-    .select('*')
-    .eq('email', email)
-    .maybeSingle();
+  const { data, error } = await supabase.from('workers').select('*')
+    .eq('email', email).maybeSingle();
   if (error) throw error;
-  return data || null;
+  return data;
 }
 
 async function ensureWorkerRecord(email) {
-  const existingWorker = await findWorkerByEmail(email);
-  if (existingWorker) return existingWorker;
-  // If worker not found in Supabase, create a local worker record instead
-  // (some deployments restrict writes to Supabase via RLS)
+  try {
+    const existing = await findWorkerByEmail(email);
+    if (existing) return existing;
+  } catch (_) { /* Supabase indisponível → usa fallback local */ }
   return addLocalWorker(email);
 }
 
-async function getOrCreateAuthUserByEmail(email) {
-  if (!email) throw new Error('E-mail é obrigatório para criar o usuário do Supabase.');
+// ═══════════════════════════════════════════════════════════════
+// ROTAS — AUTENTICAÇÃO
+// ═══════════════════════════════════════════════════════════════
 
-  const randomPassword = crypto.randomBytes(12).toString('hex');
-
-  try {
-    const { data, error } = await supabase.auth.admin.createUser({
-      email,
-      password: randomPassword,
-      email_confirm: true
-    });
-
-    if (error) throw error;
-    return data.user || data;
-  } catch (error) {
-    const message = String(error?.message || '');
-
-    // Se o usuário já existe, localiza pela API administrativa em vez de consultar auth.users como tabela.
-    if (message.toLowerCase().includes('already registered') || message.toLowerCase().includes('already exists')) {
-      const { data, error: listError } = await supabase.auth.admin.listUsers({
-        page: 1,
-        perPage: 1000
-      });
-
-      if (listError) throw listError;
-
-      const existingUser = (data?.users || []).find(user => user.email === email);
-      if (existingUser) return existingUser;
-    }
-
-    throw error;
-  }
-}
-
-async function addTrainingAssignmentByEmail({ email, trainingId, progress, done, expires, status, statusLabel }) {
-  const worker = await ensureWorkerRecord(email);
-
-  // Try to insert in Supabase; if it fails (RLS), fall back to local DB
-  try {
-    const { data, error } = await supabase
-      .from('worker_trainings')
-      .insert([{
-        worker_id: worker.id,
-        training_id: trainingId,
-        progress: progress || 0,
-        done: done || '—',
-        expires: expires || '—',
-        status: status || 'gray',
-        status_label: statusLabel || 'Pendente'
-      }])
-      .select()
-      .single();
-
-    if (error) throw error;
-    await recalculateCompliance(worker.id);
-    return { worker, assignment: data };
-  } catch (err) {
-    const localAssign = addLocalAssignment({
-      id: `local-assignment-${Date.now()}`,
-      worker_email: worker.email,
-      worker_id: worker.id,
-      training_id: trainingId,
-      progress: progress || 0,
-      done: done || '—',
-      expires: expires || '—',
-      status: status || 'gray',
-      status_label: statusLabel || 'Pendente'
-    });
-    return { worker, assignment: localAssign };
-  }
-}
-
-function hashPassword(password) {
-  const crypto = require('crypto');
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
-
-function isPrivilegedSignupAllowed(role, inviteCode) {
-  const expectedCode = PRIVILEGED_SIGNUP_CODES[role];
-  return Boolean(expectedCode && inviteCode && inviteCode.trim() === expectedCode);
-}
-
-// Cadastro de usuário
-app.post('/api/auth/signup', async (req, res) => {
+// Cadastro
+app.post('/api/auth/signup', (req, res) => {
   try {
     const { email, password, role, inviteCode } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
-    }
 
-    if (password.length < 6) {
+    if (!email || !password)
+      return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
+    if (password.length < 6)
       return res.status(400).json({ error: 'A senha deve ter no mínimo 6 caracteres.' });
-    }
+
+    // Sanitização básica
+    const safeEmail = String(email).trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeEmail))
+      return res.status(400).json({ error: 'E-mail inválido.' });
 
     const users = loadUsers();
-    if (users[email]) {
+    if (users[safeEmail])
       return res.status(400).json({ error: 'Este e-mail já foi registrado.' });
-    }
 
     const requestedRole = ['worker', 'manager', 'admin'].includes(role) ? role : 'worker';
-    if (requestedRole !== 'worker' && !isPrivilegedSignupAllowed(requestedRole, inviteCode)) {
-      return res.status(403).json({
-        error: 'Criação de contas administrativas exige um código de convite válido.'
-      });
-    }
+    if (requestedRole !== 'worker' && !isPrivilegedSignupAllowed(requestedRole, inviteCode))
+      return res.status(403).json({ error: 'Criação de contas administrativas exige código de convite válido.' });
 
-    const hashedPassword = hashPassword(password);
-    const name = formatNameFromEmail(email);
-
-    users[email] = {
-      email,
-      password: hashedPassword,
-      role: requestedRole,
+    const name = formatNameFromEmail(safeEmail);
+    users[safeEmail] = {
+      email:     safeEmail,
+      password:  hashPassword(password),   // PBKDF2 + salt
+      role:      requestedRole,
       name,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
-
     saveUsers(users);
 
-    res.json({ 
-      message: 'Conta criada com sucesso!', 
-      user: { 
-        email, 
-        name,
-        role: requestedRole
-      } 
-    });
+    res.status(201).json({ message: 'Conta criada com sucesso!', user: { email: safeEmail, name, role: requestedRole } });
   } catch (err) {
     console.error('Erro no cadastro:', err);
     res.status(500).json({ error: 'Erro interno no servidor.' });
@@ -365,34 +305,30 @@ app.post('/api/auth/signup', async (req, res) => {
 });
 
 // Login
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
+    if (!email || !password)
       return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
-    }
 
+    const safeEmail = String(email).trim().toLowerCase();
     const users = loadUsers();
-    const user = users[email];
+    const user  = users[safeEmail];
 
-    if (!user || user.password !== hashPassword(password)) {
+    // Mensagem genérica para não revelar se o e-mail existe
+    if (!user || !verifyPassword(password, user.password))
       return res.status(401).json({ error: 'Credenciais inválidas. Verifique seu e-mail e senha.' });
-    }
 
     const token = createSession(user);
-    const role = user.role;
-    const name = user.name;
-    const initials = makeInitials(name);
-
     res.json({
-      token: token,
+      token,
       user: {
-        id: email,
-        email: user.email,
-        name,
-        initials,
-        role
-      }
+        id:       safeEmail,
+        email:    user.email,
+        name:     user.name,
+        initials: makeInitials(user.name),
+        role:     user.role,
+      },
     });
   } catch (err) {
     console.error('Erro no login:', err);
@@ -401,743 +337,635 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // Logout
-app.post('/api/auth/logout', async (req, res) => {
-  try {
-    const authHeader = req.headers['authorization'] || '';
-    const token = authHeader.replace('Bearer ', '').trim();
-    deleteLocalSession(token);
-    res.json({ message: 'Logout realizado com sucesso.' });
-  } catch (err) {
-    res.status(500).json({ error: 'Erro ao realizar logout.' });
-  }
+app.post('/api/auth/logout', (req, res) => {
+  deleteSession(getTokenFromHeader(req));
+  res.json({ message: 'Logout realizado com sucesso.' });
 });
 
-// Verificar sessão atual
-app.get('/api/auth/me', async (req, res) => {
-  try {
-    const authHeader = req.headers['authorization'] || '';
-    const token = authHeader.replace('Bearer ', '').trim();
-    if (!token) return res.status(401).json({ error: 'Não autenticado.' });
-
-    const localSession = getLocalSession(token);
-    if (localSession) {
-      res.json({
-        id: localSession.email,
-        email: localSession.email,
-        name: localSession.name,
-        initials: localSession.initials,
-        role: localSession.role
-      });
-      return;
-    }
-
-    const { data, error } = await supabase.auth.getUser(token);
-    if (error || !data.user) return res.status(401).json({ error: 'Token inválido ou expirado.' });
-
-    const user = data.user;
-    const role = user.user_metadata?.role || detectRoleByEmail(user.email);
-    const name = user.user_metadata?.name || formatNameFromEmail(user.email);
-    const initials = makeInitials(name);
-
-    res.json({ id: user.id, email: user.email, name, initials, role });
-  } catch (err) {
-    res.status(500).json({ error: 'Erro ao verificar sessão.' });
-  }
+// Sessão atual
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  const s = req.session;
+  res.json({ id: s.email, email: s.email, name: s.name, initials: s.initials, role: s.role });
 });
 
-// ---- Helpers de autenticação ----
-function detectRoleByEmail(email) {
-  if (!email) return 'worker';
-  const e = email.toLowerCase();
-  if (e.includes('admin')) return 'admin';
-  if (e.includes('gestor') || e.includes('manager')) return 'manager';
-  return 'worker';
-}
+// ═══════════════════════════════════════════════════════════════
+// ROTAS — TRABALHADORES
+// ═══════════════════════════════════════════════════════════════
 
-function formatNameFromEmail(email) {
-  if (!email) return 'Usuário';
-  const local = email.split('@')[0];
-  return local.split(/[._]/).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
-}
-
-function makeInitials(name) {
-  return name.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('');
-}
-
-// ==========================================
-// ROTAS DE TRABALHADORES (Workers)
-// ==========================================
-
-// Listar todos os trabalhadores
-app.get('/api/workers', async (req, res) => {
+// Listar todos (gestor/admin)
+app.get('/api/workers', requireAuth, requireManager, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('workers')
-      .select('*')
-      .order('name', { ascending: true });
-
+    const { data, error } = await supabase.from('workers').select('*').order('name');
     if (error) throw error;
     res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Obter o trabalhador autenticado pelo token
-app.get('/api/workers/me', async (req, res) => {
+// Trabalhador logado — retorna seus próprios dados e treinamentos
+app.get('/api/workers/me', requireAuth, async (req, res) => {
   try {
-    const authHeader = req.headers['authorization'] || '';
-    const token = authHeader.replace('Bearer ', '').trim();
-    if (!token) return res.status(401).json({ error: 'Não autenticado.' });
-
-    const localSession = getLocalSession(token);
-    let email = localSession ? localSession.email : '';
-    if (!email) {
-      const { data: userData, error: userError } = await supabase.auth.getUser(token);
-      if (userError || !userData.user) return res.status(401).json({ error: 'Token inválido ou expirado.' });
-      email = userData.user.email;
-    }
-
-    // Obter dados básicos do trabalhador por email
+    const email  = req.session.email;
     const worker = await ensureWorkerRecord(email);
 
-    // Obter treinamentos associados a este trabalhador
-    let formattedTrainings = [];
+    let trainings = [];
 
-    // Primeiro, buscar atribuições locais por e-mail (se houver)
-    const localAssignments = getLocalAssignmentsByEmail(email || '');
-
-    // Se for um worker local (criado no fallback), não tentamos buscar worker_trainings no Supabase
     if (String(worker.id).startsWith('local-worker-')) {
-      formattedTrainings = localAssignments.map(t => {
-        const trainingMeta = getLocalTrainingById(t.training_id) || { id: t.training_id, name: t.training_name || 'Treinamento', norm: t.training_norm || '—' };
+      // Worker local: busca atribuições locais
+      trainings = getLocalAssignmentsByEmail(email).map(a => {
+        const t = getLocalTrainingById(a.training_id) || {};
         return {
-          id: t.id,
-          training_id: trainingMeta.id,
-          name: trainingMeta.name,
-          norm: trainingMeta.norm,
-          progress: t.progress,
-          done: t.done,
-          expires: t.expires,
-          expiresColor: t.expires_color || null,
-          status: t.status,
-          statusLabel: t.status_label
+          id: a.id, training_id: a.training_id,
+          name: t.name || a.training_name || 'Treinamento', norm: t.norm || a.training_norm || '—',
+          progress: a.progress, done: a.done, expires: a.expires,
+          expiresColor: a.expires_color || null, status: a.status, statusLabel: a.status_label,
         };
       });
     } else {
-      // Para workers do Supabase, buscar os registros lá e depois anexar eventuais atribuições locais
-      const { data: trainings, error: trainingsError } = await supabase
-        .from('worker_trainings')
-        .select(`
-          id, progress, done, expires, expires_color, status, status_label,
-          trainings ( id, name, norm )
-        `)
+      // Worker do Supabase
+      const { data, error } = await supabase.from('worker_trainings')
+        .select('id, progress, done, expires, expires_color, status, status_label, trainings(id,name,norm)')
         .eq('worker_id', worker.id);
+      if (error) throw error;
 
-      if (trainingsError) throw trainingsError;
-
-      formattedTrainings = (trainings || []).map(t => ({
-        id: t.id,
-        training_id: t.trainings.id,
-        name: t.trainings.name,
-        norm: t.trainings.norm,
-        progress: t.progress,
-        done: t.done,
-        expires: t.expires,
-        expiresColor: t.expires_color,
-        status: t.status,
-        statusLabel: t.status_label
+      trainings = (data || []).map(t => ({
+        id: t.id, training_id: t.trainings?.id,
+        name: t.trainings?.name, norm: t.trainings?.norm,
+        progress: t.progress, done: t.done, expires: t.expires,
+        expiresColor: t.expires_color, status: t.status, statusLabel: t.status_label,
       }));
 
-      // Anexar atribuições locais (caso o gestor tenha criado alguma por e-mail)
-      const extraLocal = localAssignments.map(t => {
-        const trainingMeta = getLocalTrainingById(t.training_id) || { id: t.training_id, name: t.training_name || 'Treinamento', norm: t.training_norm || '—' };
-        return {
-          id: t.id,
-          training_id: trainingMeta.id,
-          name: trainingMeta.name,
-          norm: trainingMeta.norm,
-          progress: t.progress,
-          done: t.done,
-          expires: t.expires,
-          expiresColor: t.expires_color || null,
-          status: t.status,
-          statusLabel: t.status_label
-        };
+      // Mescla atribuições locais sem duplicar
+      const existingIds = new Set(trainings.map(t => t.training_id));
+      getLocalAssignmentsByEmail(email).forEach(a => {
+        if (existingIds.has(a.training_id)) return;
+        const t = getLocalTrainingById(a.training_id) || {};
+        trainings.push({
+          id: a.id, training_id: a.training_id,
+          name: t.name || a.training_name || 'Treinamento', norm: t.norm || a.training_norm || '—',
+          progress: a.progress, done: a.done, expires: a.expires,
+          expiresColor: a.expires_color || null, status: a.status, statusLabel: a.status_label,
+        });
       });
-
-      // Evitar duplicatas simples: se já existe training_id igual, não duplicar
-      const existingTrainingIds = new Set(formattedTrainings.map(t => t.training_id));
-      for (const item of extraLocal) {
-        if (!existingTrainingIds.has(item.training_id)) formattedTrainings.push(item);
-      }
     }
 
-    const formattedWorker = {
-      ...worker,
-      trainings: formattedTrainings
-    };
-
-    res.json(formattedWorker);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.json({ ...worker, trainings });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Obter detalhe de um trabalhador pelo ID (incluindo seus treinamentos)
-app.get('/api/workers/:id', async (req, res) => {
+// Detalhe de um trabalhador pelo ID (gestor/admin)
+app.get('/api/workers/:id', requireAuth, requireManager, async (req, res) => {
   try {
-    const { id } = req.params;
-    
-    // Obter dados básicos do trabalhador
-    const { data: worker, error: workerError } = await supabase
-      .from('workers')
-      .select('*')
-      .eq('id', id)
-      .single();
+    const { data: worker, error: wErr } = await supabase.from('workers')
+      .select('*').eq('id', req.params.id).single();
+    if (wErr) throw wErr;
 
-    if (workerError) throw workerError;
+    const { data: trainings, error: tErr } = await supabase.from('worker_trainings')
+      .select('id, progress, done, expires, expires_color, status, status_label, trainings(id,name,norm)')
+      .eq('worker_id', req.params.id);
+    if (tErr) throw tErr;
 
-    // Obter treinamentos associados a este trabalhador
-    const { data: trainings, error: trainingsError } = await supabase
-      .from('worker_trainings')
-      .select(`
-        id,
-        progress,
-        done,
-        expires,
-        expires_color,
-        status,
-        status_label,
-        trainings (
-          id,
-          name,
-          norm
-        )
-      `)
-      .eq('worker_id', id);
-
-    if (trainingsError) throw trainingsError;
-
-    // Formatar a resposta no mesmo padrão que a interface espera
-    const formattedWorker = {
+    res.json({
       ...worker,
       trainings: trainings.map(t => ({
-        id: t.id,
-        training_id: t.trainings.id,
-        name: t.trainings.name,
-        norm: t.trainings.norm,
-        progress: t.progress,
-        done: t.done,
-        expires: t.expires,
-        expiresColor: t.expires_color,
-        status: t.status,
-        statusLabel: t.status_label
-      }))
-    };
-
-    res.json(formattedWorker);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+        id: t.id, training_id: t.trainings?.id,
+        name: t.trainings?.name, norm: t.trainings?.norm,
+        progress: t.progress, done: t.done, expires: t.expires,
+        expiresColor: t.expires_color, status: t.status, statusLabel: t.status_label,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Criar um novo trabalhador
-app.post('/api/workers', async (req, res) => {
+// Criar trabalhador (gestor/admin)
+app.post('/api/workers', requireAuth, requireManager, async (req, res) => {
   try {
     const { name, initials, matricula, role, sector, manager, admission, email, phone } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'E-mail é obrigatório para cadastrar trabalhador.' });
-    }
+    if (!name || !email || !role || !sector)
+      return res.status(400).json({ error: 'Campos obrigatórios: name, email, role, sector.' });
 
-    const authUser = await getOrCreateAuthUserByEmail(email);
-    const workerId = authUser.id;
-
-    const { data, error } = await supabase
-      .from('workers')
-      .upsert([{ 
-        id: workerId,
-        name, 
-        initials, 
-        matricula, 
-        role, 
-        sector, 
-        manager, 
-        admission, 
-        email, 
-        phone,
-        compliance: 0,
-        status: 'gray',
-        status_label: 'Pendente'
-      }], { onConflict: 'id' })
-      .select()
-      .single();
-
+    const { data, error } = await supabase.from('workers')
+      .insert([{ name, initials, matricula, role, sector, manager, admission, email, phone,
+                 compliance: 0, status: 'gray', status_label: 'Pendente' }])
+      .select().single();
     if (error) throw error;
     res.status(201).json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Atualizar dados de um trabalhador
-app.put('/api/workers/:id', async (req, res) => {
+// Atualizar trabalhador (gestor/admin)
+app.put('/api/workers/:id', requireAuth, requireManager, async (req, res) => {
   try {
-    const { id } = req.params;
-    const updateData = req.body;
-
-    const { data, error } = await supabase
-      .from('workers')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
+    // Impede que compliance/status sejam sobrescritos diretamente via PUT externo
+    const { compliance: _c, status: _s, status_label: _sl, ...safeBody } = req.body;
+    const { data, error } = await supabase.from('workers')
+      .update(safeBody).eq('id', req.params.id).select().single();
     if (error) throw error;
     res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Deletar um trabalhador
-app.delete('/api/workers/:id', async (req, res) => {
+// Deletar trabalhador (admin)
+app.delete('/api/workers/:id', requireAuth, async (req, res) => {
+  if (req.session.role !== 'admin')
+    return res.status(403).json({ error: 'Somente administradores podem excluir trabalhadores.' });
   try {
-    const { id } = req.params;
-    const { error } = await supabase
-      .from('workers')
-      .delete()
-      .eq('id', id);
-
+    const { error } = await supabase.from('workers').delete().eq('id', req.params.id);
     if (error) throw error;
-    res.json({ message: "Trabalhador removido com sucesso." });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.json({ message: 'Trabalhador removido com sucesso.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ==========================================
-// ROTAS DE TREINAMENTOS (Trainings)
-// ==========================================
+// ═══════════════════════════════════════════════════════════════
+// ROTAS — TREINAMENTOS
+// ═══════════════════════════════════════════════════════════════
 
-// Listar todos os treinamentos do catálogo
-app.get('/api/trainings', async (req, res) => {
+// Listar catálogo
+app.get('/api/trainings', requireAuth, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('trainings')
-      .select('*')
-      .order('name', { ascending: true });
-
+    const { data, error } = await supabase.from('trainings').select('*').order('name');
     if (error) throw error;
-
-    const localDb = loadLocalDb();
-    res.json([...(data || []), ...localDb.trainings]);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const local = loadLocalDb().trainings;
+    res.json([...(data || []), ...local]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Criar um novo treinamento no catálogo
-app.post('/api/trainings', async (req, res) => {
+// Criar treinamento (gestor/admin)
+app.post('/api/trainings', requireAuth, requireManager, async (req, res) => {
   try {
     const { name, norm, hours, validity, roles, mode, worker_email } = req.body;
+    if (!name || !norm || !hours || !validity || !mode)
+      return res.status(400).json({ error: 'Campos obrigatórios: name, norm, hours, validity, mode.' });
 
-    const training = {
-      id: `local-training-${Date.now()}`,
-      name,
-      norm,
-      hours,
-      validity,
-      roles,
-      mode,
-      status: 'green',
-      status_label: 'Ativo',
-      source: 'local'
-    };
-
-    addLocalTraining(training);
+    // Tenta salvar no Supabase; se falhar por RLS, salva localmente
+    let training;
+    try {
+      const { data, error } = await supabase.from('trainings')
+        .insert([{ name, norm, hours, validity, roles, mode, status: 'green', status_label: 'Ativo' }])
+        .select().single();
+      if (error) throw error;
+      training = data;
+    } catch (_) {
+      training = addLocalTraining({
+        id: `local-training-${Date.now()}`, name, norm, hours, validity, roles, mode,
+        status: 'green', status_label: 'Ativo', source: 'local',
+      });
+    }
 
     let assignment = null;
     if (worker_email) {
-      const worker = addLocalWorker(worker_email);
+      const worker = await ensureWorkerRecord(worker_email);
       assignment = addLocalAssignment({
         id: `local-assignment-${Date.now()}`,
-        worker_email: worker.email,
-        worker_id: worker.id,
-        training_id: training.id,
-        progress: 0,
-        done: '—',
-        expires: '—',
-        status: 'gray',
-        status_label: 'Pendente'
+        worker_email: worker.email, worker_id: worker.id,
+        training_id: training.id, progress: 0,
+        done: '—', expires: '—', status: 'gray', status_label: 'Pendente',
       });
     }
 
     res.status(201).json({ training, assignment });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ==========================================
-// ROTAS DE ATRIBUIÇÃO DE TREINAMENTOS
-// ==========================================
+// Deletar treinamento (admin)
+app.delete('/api/trainings/:id', requireAuth, async (req, res) => {
+  if (req.session.role !== 'admin')
+    return res.status(403).json({ error: 'Somente administradores podem excluir treinamentos.' });
+  try {
+    const { error } = await supabase.from('trainings').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ message: 'Treinamento removido com sucesso.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-// Atribuir treinamento a um trabalhador
-app.post('/api/worker-trainings', async (req, res) => {
+// ═══════════════════════════════════════════════════════════════
+// ROTAS — ATRIBUIÇÕES DE TREINAMENTO
+// ═══════════════════════════════════════════════════════════════
+
+// Atribuir treinamento a trabalhador (gestor/admin)
+app.post('/api/worker-trainings', requireAuth, requireManager, async (req, res) => {
   try {
     const { worker_id, worker_email, training_id, progress, done, expires, status, status_label } = req.body;
-
-    if (!worker_id && !worker_email) {
+    if (!worker_id && !worker_email)
       return res.status(400).json({ error: 'worker_id ou worker_email é obrigatório.' });
+    if (!training_id)
+      return res.status(400).json({ error: 'training_id é obrigatório.' });
+
+    // Resolve e-mail a partir do worker_id se necessário
+    let resolvedEmail = worker_email || '';
+    if (!resolvedEmail && worker_id) {
+      const { data } = await supabase.from('workers').select('email').eq('id', worker_id).maybeSingle();
+      resolvedEmail = data?.email || '';
     }
 
-    let workerEmail = worker_email || '';
-    if (!workerEmail && worker_id) {
-      const { data: workerRow, error: workerError } = await supabase
-        .from('workers')
-        .select('email')
-        .eq('id', worker_id)
-        .maybeSingle();
-      if (!workerError && workerRow?.email) {
-        workerEmail = workerRow.email;
+    // Calcula data de vencimento se done informado
+    let finalExpires = expires || '—';
+    let finalExpiresColor = '';
+    if (done && done !== '—') {
+      const { data: tr } = await supabase.from('trainings').select('validity').eq('id', training_id).maybeSingle();
+      if (tr?.validity) {
+        finalExpires = calcExpiryDate(done, tr.validity);
+        finalExpiresColor = calcExpiryColor(finalExpires);
       }
     }
 
-    const localWorker = addLocalWorker(workerEmail || `worker-${worker_id || Date.now()}@local`);
-    const training = getLocalTrainingById(training_id) || { id: training_id, name: 'Treinamento', norm: '—' };
-
-    const assignment = addLocalAssignment({
-      id: `local-assignment-${Date.now()}`,
-      worker_email: localWorker.email,
-      worker_id: localWorker.id,
-      training_id: training.id,
-      training_name: training.name,
-      training_norm: training.norm,
-      progress: progress || 0,
-      done: done || '—',
-      expires: expires || '—',
-      status: status || 'gray',
-      status_label: status_label || 'Pendente'
-    });
-
-    res.status(201).json(assignment);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    // Tenta inserir no Supabase, com fallback local
+    try {
+      const resolvedWorkerId = worker_id || (await ensureWorkerRecord(resolvedEmail))?.id;
+      const { data, error } = await supabase.from('worker_trainings')
+        .insert([{
+          worker_id: resolvedWorkerId, training_id,
+          progress: progress ?? 0, done: done || '—',
+          expires: finalExpires, expires_color: finalExpiresColor,
+          status: status || 'gray', status_label: status_label || 'Pendente',
+        }]).select().single();
+      if (error) throw error;
+      await recalculateCompliance(resolvedWorkerId);
+      return res.status(201).json(data);
+    } catch (_) {
+      const localWorker = await ensureWorkerRecord(resolvedEmail || `worker-${worker_id}`);
+      const t = getLocalTrainingById(training_id) || { id: training_id, name: 'Treinamento', norm: '—' };
+      const assignment = addLocalAssignment({
+        id: `local-assignment-${Date.now()}`,
+        worker_email: localWorker.email, worker_id: localWorker.id,
+        training_id: t.id, training_name: t.name, training_norm: t.norm,
+        progress: progress ?? 0, done: done || '—',
+        expires: finalExpires, status: status || 'gray', status_label: status_label || 'Pendente',
+      });
+      return res.status(201).json(assignment);
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Atualizar progresso ou status do treinamento de um trabalhador
-app.put('/api/worker-trainings/:id', async (req, res) => {
+// Atualizar progresso/status (gestor/admin)
+app.put('/api/worker-trainings/:id', requireAuth, requireManager, async (req, res) => {
   try {
-    const { id } = req.params;
-    const { progress, done, expires, status, status_label, expires_color } = req.body;
+    const { progress, done, training_id, status, status_label } = req.body;
 
-    const { data, error } = await supabase
-      .from('worker_trainings')
-      .update({ progress, done, expires, status, status_label, expires_color })
-      .eq('id', id)
-      .select()
-      .single();
+    // Recalcula vencimento se done foi atualizado
+    let expires = req.body.expires;
+    let expires_color = req.body.expires_color;
+    if (done && done !== '—' && training_id) {
+      const { data: tr } = await supabase.from('trainings').select('validity').eq('id', training_id).maybeSingle();
+      if (tr?.validity) {
+        expires       = calcExpiryDate(done, tr.validity);
+        expires_color = calcExpiryColor(expires);
+      }
+    }
 
+    const { data, error } = await supabase.from('worker_trainings')
+      .update({ progress, done, expires, expires_color, status, status_label })
+      .eq('id', req.params.id).select().single();
     if (error) throw error;
-    
-    // Atualiza a conformidade do trabalhador
     await recalculateCompliance(data.worker_id);
-
     res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ==========================================
-// ROTAS DE ALERTAS (Alerts)
-// ==========================================
-
-// Listar todos os alertas ativos
-app.get('/api/alerts', async (req, res) => {
+// Remover atribuição (admin)
+app.delete('/api/worker-trainings/:id', requireAuth, async (req, res) => {
+  if (req.session.role !== 'admin')
+    return res.status(403).json({ error: 'Somente administradores podem remover atribuições.' });
   try {
-    const { data, error } = await supabase
-      .from('alerts')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { data: wt } = await supabase.from('worker_trainings')
+      .select('worker_id').eq('id', req.params.id).maybeSingle();
+    const { error } = await supabase.from('worker_trainings').delete().eq('id', req.params.id);
+    if (error) throw error;
+    if (wt?.worker_id) await recalculateCompliance(wt.worker_id);
+    res.json({ message: 'Atribuição removida com sucesso.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
+// ═══════════════════════════════════════════════════════════════
+// ROTAS — ALERTAS
+// ═══════════════════════════════════════════════════════════════
+
+app.get('/api/alerts', requireAuth, requireManager, async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('alerts').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// ROTAS — DASHBOARD  (RF14: filtro de vencimento 30/60/90 dias)
+// GET /api/dashboard?days=30  →  padrão 30, aceita 60 e 90
+// ═══════════════════════════════════════════════════════════════
 
-// ==========================================
-// ROTAS DE RELATÓRIOS E DASHBOARD
-// ==========================================
-
-// Obter dados do dashboard (métricas, alertas e atividades recentes)
-app.get('/api/dashboard', async (req, res) => {
+app.get('/api/dashboard', requireAuth, requireManager, async (req, res) => {
   try {
-    // 1. Obter trabalhadores para calcular conformidade
-    const { data: workers, error: workersError } = await supabase
-      .from('workers')
-      .select('compliance, status');
+    // Valida o parâmetro days; aceita somente 30, 60 ou 90
+    const allowedDays = [30, 60, 90];
+    const days = allowedDays.includes(parseInt(req.query.days))
+      ? parseInt(req.query.days) : 30;
 
-    if (workersError) throw workersError;
+    // 1. Trabalhadores
+    const { data: workers, error: wErr } = await supabase.from('workers').select('compliance, status');
+    if (wErr) throw wErr;
 
-    // 2. Obter alertas
-    const { data: alerts, error: alertsError } = await supabase
-      .from('alerts')
-      .select('*')
+    // 2. Alertas
+    const { data: alerts, error: aErr } = await supabase.from('alerts').select('*')
       .order('created_at', { ascending: false });
+    if (aErr) throw aErr;
 
-    if (alertsError) throw alertsError;
+    // 3. Atividade recente
+    const { data: activities, error: actErr } = await supabase.from('worker_trainings')
+      .select('done, status, status_label, created_at, workers(name), trainings(name,norm)')
+      .order('created_at', { ascending: false }).limit(5);
+    if (actErr) throw actErr;
 
-    // 3. Obter atividades recentes (últimas alterações de treinamento)
-    const { data: activities, error: activitiesError } = await supabase
-      .from('worker_trainings')
-      .select(`
-        done,
-        status,
-        status_label,
-        created_at,
-        workers ( name ),
-        trainings ( name, norm )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(5);
+    // 4. Treinamentos vencendo dentro do período (RF14)
+    const { data: allWt, error: wtErr } = await supabase.from('worker_trainings')
+      .select('expires, status').in('status', ['green', 'amber']);
+    if (wtErr) throw wtErr;
 
-    if (activitiesError) throw activitiesError;
+    const today  = new Date(); today.setHours(0, 0, 0, 0);
+    const cutoff = new Date(today); cutoff.setDate(cutoff.getDate() + days);
 
-    // Processar métricas
-    const totalWorkers = workers.length;
-    const nonCompliant = workers.filter(w => w.status === 'red').length;
-    const avgCompliance = totalWorkers > 0 
-      ? Math.round(workers.reduce((acc, w) => acc + w.compliance, 0) / totalWorkers) 
-      : 0;
-    const expiring = alerts.reduce((acc, a) => acc + a.count, 0);
+    const expiringCount = (allWt || []).filter(wt => {
+      const exp = parseExpiryDate(wt.expires);
+      return exp && exp >= today && exp <= cutoff;
+    }).length;
 
-    const metrics = {
-      compliance: avgCompliance,
-      workers: totalWorkers,
-      expiring: expiring,
-      nonCompliant: nonCompliant
-    };
-
-    const recentActivity = activities.map(wt => ({
-      name: wt.workers ? wt.workers.name : 'Desconhecido',
-      training: wt.trainings ? wt.trainings.name : 'Desconhecido',
-      norm: wt.trainings ? wt.trainings.norm : '—',
-      date: wt.done !== '—' ? wt.done : 'Em andamento',
-      status: wt.status,
-      statusLabel: wt.status_label
-    }));
+    // Métricas
+    const total          = workers.length;
+    const nonCompliant   = workers.filter(w => w.status === 'red').length;
+    const avgCompliance  = total > 0
+      ? Math.round(workers.reduce((acc, w) => acc + (w.compliance || 0), 0) / total) : 0;
 
     res.json({
-      metrics,
+      metrics: { compliance: avgCompliance, workers: total, expiring: expiringCount,
+                 nonCompliant, expiringDays: days },
       alerts,
-      recentActivity
+      recentActivity: (activities || []).map(wt => ({
+        name:        wt.workers?.name     || 'Desconhecido',
+        training:    wt.trainings?.name   || 'Desconhecido',
+        norm:        wt.trainings?.norm   || '—',
+        date:        wt.done !== '—' ? wt.done : 'Em andamento',
+        status:      wt.status,
+        statusLabel: wt.status_label,
+      })),
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Obter dados consolidados para relatórios
-app.get('/api/reports', async (req, res) => {
+// ═══════════════════════════════════════════════════════════════
+// ROTAS — RELATÓRIOS  (RF18: filtros reais + summary)
+// GET /api/reports?sector=X&role=Y&norm=Z
+// ═══════════════════════════════════════════════════════════════
+
+app.get('/api/reports', requireAuth, requireManager, async (req, res) => {
   try {
-    // 1. Obter trabalhadores com contagens de treinamentos
-    const { data: workers, error: workersError } = await supabase
-      .from('workers')
-      .select(`
-        id, name, sector, role, compliance, status, status_label,
-        worker_trainings (
-          status
-        )
-      `);
+    const { sector, role, norm } = req.query;
 
-    if (workersError) throw workersError;
+    // 1. Trabalhadores com filtros opcionais
+    let q = supabase.from('workers')
+      .select('id, name, sector, role, compliance, status, status_label, worker_trainings(status)');
+    if (sector) q = q.eq('sector', sector);
+    if (role)   q = q.eq('role',   role);
 
-    const reportWorkers = workers.map(w => {
-      const valid = w.worker_trainings ? w.worker_trainings.filter(wt => wt.status === 'green').length : 0;
-      const expired = w.worker_trainings ? w.worker_trainings.filter(wt => wt.status === 'red' || wt.status === 'amber').length : 0;
-      return {
-        name: w.name,
-        sector: w.sector,
-        role: w.role,
-        valid,
-        expired,
-        pct: w.compliance,
-        status: w.status,
-        statusLabel: w.status_label
-      };
-    });
+    const { data: workers, error: wErr } = await q;
+    if (wErr) throw wErr;
 
-    // 2. Calcular conformidade por setor
-    const depts = {};
-    workers.forEach(w => {
-      if (!depts[w.sector]) depts[w.sector] = { sum: 0, count: 0 };
-      depts[w.sector].sum += w.compliance;
-      depts[w.sector].count += 1;
-    });
-    const departments = Object.keys(depts).map(name => ({
-      name,
-      pct: Math.round(depts[name].sum / depts[name].count)
+    const reportWorkers = workers.map(w => ({
+      name:        w.name,
+      sector:      w.sector,
+      role:        w.role,
+      valid:       (w.worker_trainings || []).filter(wt => wt.status === 'green').length,
+      expired:     (w.worker_trainings || []).filter(wt => wt.status === 'red' || wt.status === 'amber').length,
+      pct:         w.compliance,
+      status:      w.status,
+      statusLabel: w.status_label,
     }));
 
-    // 3. Calcular conformidade por norma (NR)
-    const { data: workerTrainings, error: wtError } = await supabase
-      .from('worker_trainings')
-      .select(`
-        status,
-        trainings (
-          norm
-        )
-      `);
+    // 2. Conformidade por setor (a partir dos trabalhadores já filtrados)
+    const deptMap = {};
+    workers.forEach(w => {
+      if (!deptMap[w.sector]) deptMap[w.sector] = { sum: 0, count: 0 };
+      deptMap[w.sector].sum   += w.compliance;
+      deptMap[w.sector].count += 1;
+    });
+    const departments = Object.keys(deptMap).map(name => ({
+      name,
+      pct: Math.round(deptMap[name].sum / deptMap[name].count),
+    }));
 
-    if (wtError) throw wtError;
+    // 3. Conformidade por norma (com filtro opcional)
+    let wtQ = supabase.from('worker_trainings').select('status, trainings(norm)');
+    if (norm) wtQ = wtQ.eq('trainings.norm', norm);
+    const { data: wts, error: wtErr } = await wtQ;
+    if (wtErr) throw wtErr;
 
-    const norms = {};
-    workerTrainings.forEach(wt => {
+    const normMap = {};
+    (wts || []).forEach(wt => {
       if (!wt.trainings) return;
-      const norm = wt.trainings.norm;
-      if (!norms[norm]) norms[norm] = { valid: 0, expired: 0 };
-      if (wt.status === 'green') {
-        norms[norm].valid += 1;
-      } else if (wt.status === 'red' || wt.status === 'amber') {
-        norms[norm].expired += 1;
-      }
+      const n = wt.trainings.norm;
+      if (!normMap[n]) normMap[n] = { valid: 0, expired: 0 };
+      if (wt.status === 'green') normMap[n].valid++;
+      else if (wt.status === 'red' || wt.status === 'amber') normMap[n].expired++;
+    });
+    const normCompliance = Object.keys(normMap).map(n => {
+      const { valid, expired } = normMap[n];
+      const total = valid + expired;
+      return { norm: n, pct: total > 0 ? Math.round((valid / total) * 100) : 100, valid, expired };
     });
 
-    const normCompliance = Object.keys(norms).map(norm => {
-      const n = norms[norm];
-      const total = n.valid + n.expired;
-      const pct = total > 0 ? Math.round((n.valid / total) * 100) : 100;
-      return {
-        norm,
-        pct,
-        valid: n.valid,
-        expired: n.expired
-      };
-    });
+    // 4. Resumo calculado dinamicamente
+    const total        = reportWorkers.length;
+    const conformes    = reportWorkers.filter(w => w.status === 'green').length;
+    const emRisco      = reportWorkers.filter(w => w.status === 'amber').length;
+    const naoConformes = reportWorkers.filter(w => w.status === 'red').length;
+    const avgPct = total > 0
+      ? Math.round(reportWorkers.reduce((a, w) => a + w.pct, 0) / total) : 0;
 
     res.json({
-      reportWorkers,
-      departments,
-      normCompliance
+      reportWorkers, departments, normCompliance,
+      summary: { totalWorkers: total, conformes, emRisco, naoConformes, avgCompliance: avgPct },
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// ROTAS — CONFIGURAÇÕES
+// ═══════════════════════════════════════════════════════════════
 
-// ==========================================
-// FUNÇÕES AUXILIARES
-// ==========================================
+const CONFIG_FILE = path.join(__dirname, 'config.json');
 
-// Recalcular conformidade reativamente ao alterar um treinamento
-async function recalculateCompliance(workerId) {
+app.get('/api/settings', requireAuth, async (req, res) => {
+  if (req.session.role !== 'admin')
+    return res.status(403).json({ error: 'Somente administradores podem ver as configurações.' });
   try {
-    const { data: trainings, error } = await supabase
-      .from('worker_trainings')
-      .select('status')
-      .eq('worker_id', workerId);
+    const config = readJSON(CONFIG_FILE, {
+      alertDays: 30, autoRecalculate: true, theme: 'light',
+    });
+    // Nunca expõe as chaves do Supabase para o frontend
+    const { supabaseUrl: _u, supabaseAnonKey: _k, ...safeConfig } = config;
+    res.json(safeConfig);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-    if (error) throw error;
-    if (!trainings || trainings.length === 0) return;
+app.post('/api/settings', requireAuth, async (req, res) => {
+  if (req.session.role !== 'admin')
+    return res.status(403).json({ error: 'Somente administradores podem alterar as configurações.' });
+  try {
+    // Só salva campos permitidos — nunca aceita chaves do Supabase via request
+    const { alertDays, autoRecalculate, theme } = req.body;
+    const existing = readJSON(CONFIG_FILE, {});
+    const updated  = { ...existing, alertDays, autoRecalculate, theme };
+    writeJSON(CONFIG_FILE, updated);
+    res.json({ message: 'Configurações salvas com sucesso!', config: { alertDays, autoRecalculate, theme } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-    const total = trainings.length;
+// ═══════════════════════════════════════════════════════════════
+// FUNÇÕES AUXILIARES — CONFORMIDADE E DATAS
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Recalcula compliance, status e status_label de um trabalhador
+ * com base em todos os seus worker_trainings no Supabase.
+ */
+async function recalculateCompliance(workerId) {
+  if (!workerId || String(workerId).startsWith('local-')) return;
+  try {
+    const { data: trainings, error } = await supabase.from('worker_trainings')
+      .select('status').eq('worker_id', workerId);
+    if (error || !trainings?.length) return;
+
+    const total      = trainings.length;
     const validCount = trainings.filter(t => t.status === 'green').length;
-    
-    const compliancePercent = Math.round((validCount / total) * 100);
-    
-    let overallStatus = 'green';
-    let overallLabel = 'Conforme';
-    
+    const pct        = Math.round((validCount / total) * 100);
+
     const hasExpired = trainings.some(t => t.status === 'red' || t.status === 'amber');
     const hasPending = trainings.some(t => t.status === 'gray' || t.status === 'blue');
 
-    if (hasExpired) {
-      overallStatus = 'red';
-      overallLabel = 'Não conforme';
-    } else if (hasPending || compliancePercent < 100) {
-      overallStatus = 'amber';
-      overallLabel = 'Em risco';
-    }
+    let overallStatus = 'green', overallLabel = 'Conforme';
+    if (hasExpired)                         { overallStatus = 'red';   overallLabel = 'Não conforme'; }
+    else if (hasPending || pct < 100)       { overallStatus = 'amber'; overallLabel = 'Em risco';     }
 
-    await supabase
-      .from('workers')
-      .update({ 
-        compliance: compliancePercent,
-        status: overallStatus,
-        status_label: overallLabel
-      })
+    await supabase.from('workers')
+      .update({ compliance: pct, status: overallStatus, status_label: overallLabel })
       .eq('id', workerId);
-
   } catch (err) {
-    console.error("Falha ao recalcular conformidade do trabalhador:", err.message);
+    console.error('Falha ao recalcular conformidade:', err.message);
   }
 }
 
-// (fs e path já importados no topo)
+/**
+ * Meses em pt-BR para parsing/formatação de datas no formato "Jun 2026".
+ */
+const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
-// ==========================================
-// ROTAS DE CONFIGURAÇÃO (Settings)
-// ==========================================
+/**
+ * Parseia "Jun 2026" → Date (dia 1 do mês).
+ * Retorna null se o formato for inválido ou a string for "—".
+ */
+function parseExpiryDate(str) {
+  if (!str || str === '—') return null;
+  const parts = String(str).trim().split(' ');
+  if (parts.length !== 2) return null;
+  const m = MESES.indexOf(parts[0]);
+  if (m < 0) return null;
+  const year = parseInt(parts[1]);
+  if (isNaN(year)) return null;
+  return new Date(year, m, 1);
+}
 
-// Obter as configurações
-app.get('/api/settings', (req, res) => {
-  const configPath = path.join(__dirname, 'config.json');
+/**
+ * Calcula data de vencimento a partir de:
+ *   doneStr:     "Jun 2024" ou ISO "2024-06-01"
+ *   validityStr: "2 anos" | "1 ano" | "6 meses"
+ * Retorna string "Mmm YYYY" ou "—" se inválido.
+ */
+function calcExpiryDate(doneStr, validityStr) {
   try {
-    if (fs.existsSync(configPath)) {
-      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      res.json(config);
+    let base;
+    const parts = String(doneStr).trim().split(' ');
+    if (parts.length === 2 && MESES.includes(parts[0])) {
+      base = new Date(parseInt(parts[1]), MESES.indexOf(parts[0]), 1);
     } else {
-      res.json({
-        supabaseUrl: "",
-        supabaseAnonKey: "",
-        alertDays: 30,
-        autoRecalculate: true,
-        theme: "light"
-      });
+      base = new Date(doneStr);
     }
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (isNaN(base.getTime())) return '—';
+
+    const match = String(validityStr).match(/(\d+)\s*(ano|mes|mês)/i);
+    if (!match) return '—';
+
+    const qty  = parseInt(match[1]);
+    const unit = match[2].toLowerCase();
+    if (unit.startsWith('ano')) base.setFullYear(base.getFullYear() + qty);
+    else                        base.setMonth(base.getMonth() + qty);
+
+    return `${MESES[base.getMonth()]} ${base.getFullYear()}`;
+  } catch (_) {
+    return '—';
   }
-});
+}
 
-// Salvar as configurações
-app.post('/api/settings', (req, res) => {
-  const configPath = path.join(__dirname, 'config.json');
-  try {
-    const newConfig = req.body;
-    fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2), 'utf8');
-    res.json({ message: "Configurações salvas com sucesso!", config: newConfig });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+/**
+ * Retorna a cor de alerta com base nos dias restantes até o vencimento.
+ *   > 60 dias  → 'green'
+ *   30–60 dias → 'amber'
+ *   < 30 dias ou passado → 'red'
+ *   Inválido → ''
+ */
+function calcExpiryColor(expiresStr) {
+  const exp = parseExpiryDate(expiresStr);
+  if (!exp) return '';
+  const diffDays = Math.ceil((exp.getTime() - Date.now()) / 86_400_000);
+  if (diffDays > 60) return 'green';
+  if (diffDays > 30) return 'amber';
+  return 'red';
+}
 
-// Rotas de conveniência
-app.get('/login', (req, res) => {
-  res.redirect('/html/login.html');
-});
+// ═══════════════════════════════════════════════════════════════
+// INICIALIZAÇÃO DO SERVIDOR
+// ═══════════════════════════════════════════════════════════════
 
-// Iniciar servidor
 const server = app.listen(PORT, () => {
-  console.log(`Servidor rodando com sucesso na porta ${PORT}`);
-  console.log(`Acesse o sistema em: http://localhost:${PORT}`);
+  console.log(`✓ Getrin rodando em http://localhost:${PORT}`);
 });
 
-server.on('error', (error) => {
-  if (error.code === 'EADDRINUSE') {
-    console.error(`A porta ${PORT} já está em uso. Provavelmente já existe outra instância do backend rodando.`);
-    console.error('Feche o processo antigo ou libere a porta antes de iniciar outro servidor.');
+server.on('error', err => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`✗ Porta ${PORT} já está em uso. Encerre o processo anterior ou altere a variável PORT.`);
     process.exit(0);
-    return;
+  } else {
+    console.error('Erro ao iniciar servidor:', err);
+    process.exit(1);
   }
-
-  console.error('Erro ao iniciar o servidor:', error);
-  process.exit(1);
 });
