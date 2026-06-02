@@ -9,32 +9,60 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
   <link rel="stylesheet" href="/css/style.css" />
-
+  <style>
+    /* Filtro de dias 30 / 60 / 90 */
+    .days-filter {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      background: var(--gray-50);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2px;
+    }
+    .days-filter-btn {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: calc(var(--radius) - 1px);
+      border: none;
+      background: transparent;
+      color: var(--text-2);
+      cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+    .days-filter-btn.active {
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 500;
+      box-shadow: 0 1px 2px rgba(0,0,0,.08);
+    }
+    .days-filter-btn:hover:not(.active) { background: rgba(0,0,0,.04); }
+  </style>
 </head>
 <body>
 
 <div class="app">
-
-  <!-- Sidebar (injetado pelo JS) -->
   <div id="sidebar-mount"></div>
 
-  <!-- Main -->
   <div class="main">
-
-    <!-- Topbar -->
     <div class="topbar">
       <div class="topbar-left">
         <span class="topbar-title">Painel Geral</span>
       </div>
       <div class="topbar-right">
-        <span class="topbar-meta">Ciclo: Jan–Jun 2025</span>
-        <button class="btn" onclick="showToast('Relatório exportado.')">
-          <i class="ti ti-download"></i>Exportar
+        <!-- RF14: seletor de período de vencimento -->
+        <div class="days-filter" title="Treinamentos vencendo em...">
+          <button class="days-filter-btn active" data-days="30" onclick="loadDashboard(30)">30d</button>
+          <button class="days-filter-btn"        data-days="60" onclick="loadDashboard(60)">60d</button>
+          <button class="days-filter-btn"        data-days="90" onclick="loadDashboard(90)">90d</button>
+        </div>
+        <button class="btn" onclick="window.location.href='/html/reports.html'">
+          <i class="ti ti-chart-bar"></i>Relatórios
         </button>
       </div>
     </div>
 
-    <!-- Content -->
     <div class="content-area">
 
       <!-- Métricas -->
@@ -42,22 +70,23 @@
         <div class="metric-card">
           <div class="metric-label">Conformidade geral</div>
           <div class="metric-value c-accent" id="metric-compliance">—</div>
-          <div class="metric-sub">+3pp vs mês anterior</div>
+          <div class="metric-sub">Média de todos os trabalhadores</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Trabalhadores ativos</div>
           <div class="metric-value" id="metric-workers">—</div>
-          <div class="metric-sub">6 setores</div>
+          <div class="metric-sub">Cadastrados no sistema</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">Vencendo em 30 dias</div>
+          <!-- Label atualizado dinamicamente pelo JS conforme o filtro -->
+          <div class="metric-label" id="metric-expiring-label">Vencendo em 30 dias</div>
           <div class="metric-value c-warn" id="metric-expiring">—</div>
           <div class="metric-sub">Requer ação imediata</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Não conformes</div>
           <div class="metric-value c-danger" id="metric-noncompliant">—</div>
-          <div class="metric-sub">7,7% da força de trabalho</div>
+          <div class="metric-sub">Status vermelho</div>
         </div>
       </div>
 
@@ -65,16 +94,17 @@
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">Alertas ativos</span>
-          <span class="badge badge-amber">38 pendentes</span>
         </div>
-        <div id="alerts-list"></div>
+        <div id="alerts-list">
+          <div style="padding:16px;text-align:center;color:var(--text-3);font-size:12px;">Carregando...</div>
+        </div>
       </div>
 
       <!-- Atividade recente -->
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">Atividade recente</span>
-          <button class="btn btn-sm" onclick="showToast('Carregando histórico completo...')">Ver tudo</button>
+          <button class="btn btn-sm" onclick="window.location.href='/html/reports.html'">Ver relatório</button>
         </div>
         <table>
           <thead>
@@ -86,13 +116,15 @@
               <th style="width:18%">Status</th>
             </tr>
           </thead>
-          <tbody id="activity-tbody"></tbody>
+          <tbody id="activity-tbody">
+            <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-3);">Carregando...</td></tr>
+          </tbody>
         </table>
       </div>
 
-    </div><!-- /content-area -->
-  </div><!-- /main -->
-</div><!-- /app -->
+    </div>
+  </div>
+</div>
 
 <script src="/js/data.js"></script>
 <script src="/js/dashboard.js"></script>

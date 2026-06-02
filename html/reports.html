@@ -10,86 +10,126 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/reports.css" />
+  <style>
+    /* Filtros em <select> para funcionar com a API */
+    .filter-select {
+      font-family: var(--ff);
+      font-size: 12px;
+      padding: 5px 10px;
+      border: 0.5px solid var(--border-md);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      height: 30px;
+    }
+    .filter-select:focus { outline: none; border-color: var(--accent); }
+  </style>
 </head>
 <body>
 
 <div class="app">
-
   <div id="sidebar-mount"></div>
 
   <div class="main">
-
     <div class="topbar">
       <div class="topbar-left">
         <span class="topbar-title">Relatórios de conformidade</span>
       </div>
       <div class="topbar-right">
-        <button class="btn" onclick="showToast('PDF gerado com sucesso.')">
+        <!-- RF18: exportação real -->
+        <button class="btn" onclick="exportPDF()">
           <i class="ti ti-file-type-pdf"></i>Exportar PDF
         </button>
-        <button class="btn" onclick="showToast('Planilha exportada.')">
-          <i class="ti ti-table-export"></i>Exportar XLSX
+        <button class="btn" onclick="exportXLSX()">
+          <i class="ti ti-table-export"></i>Exportar Excel
         </button>
       </div>
     </div>
 
     <div class="content-area">
 
-      <!-- Filtros -->
+      <!-- Filtros reais (RF18) -->
       <div class="filters-row">
-        <button class="filter-pill" onclick="showToast('Filtro: setor aplicado.')">
-          <i class="ti ti-building"></i>Setor
+        <select id="filter-sector" class="filter-select" onchange="filterBySector(this.value)">
+          <option value="">Todos os setores</option>
+          <option>Infraestrutura</option>
+          <option>Produção</option>
+          <option>Logística</option>
+          <option>Manutenção</option>
+          <option>Qualidade</option>
+          <option>Administrativo</option>
+        </select>
+
+        <select id="filter-role" class="filter-select" onchange="filterByRole(this.value)">
+          <option value="">Todas as funções</option>
+          <option>Eletricista Sênior</option>
+          <option>Eletricista Pleno</option>
+          <option>Técnica de Segurança</option>
+          <option>Operadora de Prensa</option>
+          <option>Operador de Máquinas</option>
+          <option>Operador de Caldeira</option>
+          <option>Supervisor Logístico</option>
+          <option>Analista de Qualidade</option>
+          <option>Mecânico de Manutenção</option>
+          <option>Coordenadora Administrativa</option>
+          <option>Técnica de Produção</option>
+        </select>
+
+        <select id="filter-norm" class="filter-select" onchange="filterByNorm(this.value)">
+          <option value="">Todas as normas</option>
+          <option>NR-06</option>
+          <option>NR-07</option>
+          <option>NR-10</option>
+          <option>NR-12</option>
+          <option>NR-17</option>
+          <option>NR-23</option>
+          <option>NR-33</option>
+          <option>NR-35</option>
+        </select>
+
+        <button class="btn btn-sm" onclick="clearFilters()">
+          <i class="ti ti-x"></i>Limpar
         </button>
-        <button class="filter-pill" onclick="showToast('Filtro: função aplicado.')">
-          <i class="ti ti-users"></i>Função
-        </button>
-        <button class="filter-pill" onclick="showToast('Filtro: norma aplicado.')">
-          <i class="ti ti-shield-check"></i>Norma NR
-        </button>
-        <button class="filter-pill" onclick="showToast('Filtro: período aplicado.')">
-          <i class="ti ti-calendar"></i>Período
-        </button>
-        <span class="filters-count">Jan – Jun 2025</span>
       </div>
 
-      <!-- Métricas de resumo -->
+      <!-- Métricas dinâmicas (RF18) -->
       <div class="metrics-row">
         <div class="metric-card">
           <div class="metric-label">Taxa geral de conformidade</div>
-          <div class="metric-value c-accent">84%</div>
-          <div class="metric-sub">Jan–Jun 2025</div>
+          <div class="metric-value c-accent" id="summary-avg">—</div>
+          <div class="metric-sub">Média do filtro atual</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Trabalhadores conformes</div>
-          <div class="metric-value">262</div>
-          <div class="metric-sub">de 312 ativos</div>
+          <div class="metric-value" id="summary-conf">—</div>
+          <div class="metric-sub">Status verde</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Em risco</div>
-          <div class="metric-value c-warn">26</div>
-          <div class="metric-sub">8,3% da força</div>
+          <div class="metric-value c-warn" id="summary-risco">—</div>
+          <div class="metric-sub">Status âmbar</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Não conformes</div>
-          <div class="metric-value c-danger">24</div>
-          <div class="metric-sub">7,7% da força</div>
+          <div class="metric-value c-danger" id="summary-nconf">—</div>
+          <div class="metric-sub">Status vermelho</div>
         </div>
       </div>
 
       <!-- Gráfico + Tabela por norma -->
       <div class="two-col">
-
-        <!-- Gráfico de barras -->
         <div class="panel" style="margin-bottom:0;">
           <div class="panel-header">
             <span class="panel-title">Conformidade por setor</span>
           </div>
           <div class="bar-chart-wrap">
-            <div class="bar-chart-grid" id="dept-chart"></div>
+            <div class="bar-chart-grid" id="dept-chart">
+              <div style="padding:16px;color:var(--text-3);font-size:12px;">Carregando...</div>
+            </div>
           </div>
         </div>
 
-        <!-- Por norma -->
         <div class="panel" style="margin-bottom:0;">
           <div class="panel-header">
             <span class="panel-title">Por norma regulamentadora</span>
@@ -103,17 +143,18 @@
                 <th style="width:20%">Vencidos</th>
               </tr>
             </thead>
-            <tbody id="norm-tbody"></tbody>
+            <tbody id="norm-tbody">
+              <tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text-3);">Carregando...</td></tr>
+            </tbody>
           </table>
         </div>
-
       </div>
 
       <!-- Detalhamento por trabalhador -->
       <div class="panel reports-panel-mt">
         <div class="panel-header">
           <span class="panel-title">Detalhamento por trabalhador</span>
-          <span style="font-family:var(--mono);font-size:10px;color:var(--text-3);">312 registros</span>
+          <span id="workers-count" style="font-family:var(--mono);font-size:10px;color:var(--text-3);">—</span>
         </div>
         <table>
           <thead>
@@ -127,7 +168,9 @@
               <th style="width:15%">Status</th>
             </tr>
           </thead>
-          <tbody id="report-workers-tbody"></tbody>
+          <tbody id="report-workers-tbody">
+            <tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text-3);">Carregando...</td></tr>
+          </tbody>
         </table>
       </div>
 
