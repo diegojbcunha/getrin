@@ -755,6 +755,7 @@ app.get('/api/reports', requireAuth, requireManager, async (req, res) => {
     const { data: workers, error: wErr } = await q;
     if (wErr) throw wErr;
 
+  
     const reportWorkers = workers.map(w => ({
       name:        w.name,
       sector:      w.sector,
