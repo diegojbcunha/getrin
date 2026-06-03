@@ -3,5 +3,6 @@ backend/.env.example
 backend/users.json
 backend/node_modules/
 node_modules/
+backend/config.json
 .DS_Store
 *.log
