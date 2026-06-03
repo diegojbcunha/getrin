@@ -637,4 +637,12 @@ async function populateAssignTrainingSelect() {
 document.addEventListener('DOMContentLoaded', async () => {
   injectSharedHTML();
   await populateAssignTrainingSelect();
+  // Inicializa o Tutor de Segurança IA em todas as páginas internas
+  if (typeof initTutor === 'function') initTutor();
 });
+/* ---------------------------------------------------------------
+   TUTOR DE SEGURANÇA IA
+   O script é carregado dinamicamente pelo tutor.js via injectTutor().
+   Para ativar, inclua /js/tutor.js no <head> de qualquer página ou
+   deixe o data.js cuidar disso automaticamente.
+   --------------------------------------------------------------- */

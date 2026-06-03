@@ -1,30 +1,16 @@
 {
-  "f0ee13e1e3a06095b9bdce95785c894a6512b0effade2fc46d0d2668f4877c426661d8a588b46f0259f7632d7a65f36c": {
+  "fd33bef4cef389463f00f8ae0901a2bb180a9ecd5e2370b7be6d579ee96aa58428edc70d0003e9d3847ec2da34565df6": {
     "email": "teteu@gmail.com",
     "role": "admin",
     "name": "Teteu",
     "initials": "T",
-    "createdAt": "2026-06-02T22:19:04.633Z"
+    "createdAt": "2026-06-03T17:06:33.509Z"
   },
-  "fc8fbf8c04ceb238669814a5cbdb7ab91eb584d3c828b0d3c5ed9fbc2f2be3056a950c40a8d6caf4cea7f61f1365c72b": {
+  "96db587252f086de04c6b8bf6b2f97e4af3184c663b9073d8892a06f4315d031f4ace710b5de58b74b13b260490f37f8": {
     "email": "teteu@gmail.com",
     "role": "admin",
     "name": "Teteu",
     "initials": "T",
-    "createdAt": "2026-06-02T22:29:18.684Z"
-  },
-  "dcdba00a0a58f8b3fa2270114cc9402bd8ac7165ab1bd76d94025d4707b5871d15a047ce4ac97fa4c39655fd81644186": {
-    "email": "teteu@gmail.com",
-    "role": "admin",
-    "name": "Teteu",
-    "initials": "T",
-    "createdAt": "2026-06-02T22:35:35.278Z"
-  },
-  "3396b625fa69aa46331909280ea942451f858d1adab1f8ec0ec2a5b14d6998612d71a23a1fc2bbe270e1b6bbe7ad5d0f": {
-    "email": "teteu@gmail.com",
-    "role": "admin",
-    "name": "Teteu",
-    "initials": "T",
-    "createdAt": "2026-06-02T22:36:10.065Z"
+    "createdAt": "2026-06-03T19:15:40.314Z"
   }
 }
