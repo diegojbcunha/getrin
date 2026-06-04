@@ -1,0 +1,22 @@
+{
+  "trainings": [],
+  "assignments": [],
+  "workers": [
+    {
+      "id": "local-worker-1780596234696",
+      "name": "Jonathas Barbosa1405",
+      "initials": "JB",
+      "matricula": "#34696",
+      "role": "Colaborador",
+      "sector": "—",
+      "manager": "—",
+      "admission": "04/06/2026",
+      "email": "jonathas.barbosa1405@gmail.com",
+      "phone": "—",
+      "compliance": 0,
+      "status": "gray",
+      "status_label": "Pendente",
+      "trainings": []
+    }
+  ]
+}

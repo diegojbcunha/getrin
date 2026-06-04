@@ -13,7 +13,8 @@ if (fs.existsSync(configPath)) {
   try {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     if (config.supabaseUrl && !config.supabaseUrl.includes('sua-url-do-supabase')) {
-      supabaseUrl = config.supabaseUrl;
+      // Limpa a URL para garantir que seja apenas o domínio base
+      supabaseUrl = config.supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
       supabaseAnonKey = config.supabaseAnonKey;
     }
   } catch (err) {
