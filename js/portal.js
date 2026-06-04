@@ -3,18 +3,14 @@
    js/portal.js
    ============================================================= */
 
+let _currentWorkerData = null;
+
 document.addEventListener('DOMContentLoaded', async () => {
   if (!authGuard()) return;
   document.getElementById('sidebar-mount').innerHTML = renderSidebar('portal', true);
   try {
-    const res = await fetch(`${API_BASE}/workers/me`, { headers: getAuthHeaders() });
-    if (!res.ok) {
-      if (res.status === 404) {
-        throw new Error("Seu e-mail não está associado a nenhum trabalhador cadastrado. Entre em contato com seu gestor.");
-      }
-      throw new Error("Erro ao obter dados do trabalhador");
-    }
-    const w = await res.json();
+    const w = await fetchWithFallback('/workers/me', {}, Workers[0]);
+    _currentWorkerData = w;
     
     // Atualiza a barra lateral com o nome e badge corretos
     document.getElementById('sidebar-mount').innerHTML = renderSidebar('portal', true);
@@ -31,6 +27,82 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast(err.message || "Erro ao carregar treinamentos do portal.");
   }
 });
+
+/* --- Lógica de Configurações do Portal --- */
+
+function openPortalSettings() {
+  if (!_currentWorkerData) return;
+  
+  const section = document.getElementById('portal-settings-section');
+  if (!section) return;
+
+  // Preenche os campos com os dados atuais
+  document.getElementById('setting-name').value = _currentWorkerData.name || '';
+  document.getElementById('setting-initials').value = _currentWorkerData.initials || '';
+  document.getElementById('setting-phone').value = _currentWorkerData.phone || '';
+  document.getElementById('setting-email').value = _currentWorkerData.email || '';
+
+  section.style.display = 'block';
+  section.scrollIntoView({ behavior: 'smooth' });
+}
+
+function closePortalSettings() {
+  const section = document.getElementById('portal-settings-section');
+  if (section) section.style.display = 'none';
+}
+
+async function savePortalSettings() {
+  const name = document.getElementById('setting-name').value.trim();
+  const initials = document.getElementById('setting-initials').value.trim().toUpperCase();
+  const phone = document.getElementById('setting-phone').value.trim();
+
+  if (!name || !initials) {
+    showToast('Nome e Iniciais são obrigatórios.');
+    return;
+  }
+
+  const btn = document.querySelector('#portal-settings-section .btn-primary');
+  const oldText = btn.textContent;
+  btn.textContent = 'Salvando...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${API_BASE}/workers/profile`, {
+      method: 'PATCH',
+      headers: { 
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify({ name, initials, phone })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao salvar perfil.');
+
+    showToast('Perfil atualizado com sucesso!');
+    
+    // Atualiza o estado local
+    _currentWorkerData.name = name;
+    _currentWorkerData.initials = initials;
+    _currentWorkerData.phone = phone;
+
+    // Atualiza a UI global (Sidebar e Banner)
+    State.currentName = name;
+    State.currentInitials = initials;
+    document.getElementById('sidebar-mount').innerHTML = renderSidebar('portal', true);
+    
+    const pending = (_currentWorkerData.trainings || []).filter(t => t.status !== 'green');
+    renderPortalBanner(_currentWorkerData, pending);
+
+    closePortalSettings();
+  } catch (err) {
+    console.error(err);
+    showToast(err.message);
+  } finally {
+    btn.textContent = oldText;
+    btn.disabled = false;
+  }
+}
 
 function renderPortalBanner(w, pendingList) {
   const compEl = document.getElementById('portal-compliance');

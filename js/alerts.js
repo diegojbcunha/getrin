@@ -19,9 +19,7 @@ async function loadAlerts() {
   list.innerHTML = `<div class="alerts-loading"><i class="ti ti-loader-2"></i>Carregando alertas...</div>`;
 
   try {
-    const res = await fetch(`${API_BASE}/alerts`, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error("Erro ao obter alertas");
-    const raw = await res.json();
+    const raw = await fetchWithFallback('/alerts', {}, getMockAlerts());
 
     // Normaliza: garante que cada alerta tem um campo 'level' calculado por 'days'
     alertsData = raw.map(a => ({
@@ -33,10 +31,7 @@ async function loadAlerts() {
     renderAlerts(alertsData);
   } catch (err) {
     console.error(err);
-    // Fallback com dados mock para demonstração
-    alertsData = getMockAlerts();
-    renderMetrics();
-    renderAlerts(alertsData);
+    showToast("Erro ao carregar alertas.");
   }
 }
 

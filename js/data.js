@@ -5,13 +5,29 @@
    ============================================================= */
 
 /* ---------------------------------------------------------------
-   CONFIGURAÇÃO DA API
-   Relativa ao host — funciona tanto via Express (porta 3003)
-   quanto aberto diretamente no navegador (fallback para localhost).
+   API E FALLBACK
    --------------------------------------------------------------- */
 const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
   ? `http://${location.hostname}:3003/api`
   : '/api';
+
+/**
+ * Tenta buscar dados do servidor. Se falhar, retorna os dados locais.
+ */
+async function fetchWithFallback(endpoint, options = {}, localData = null) {
+  try {
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers: { ...getAuthHeaders(), ...options.headers }
+    });
+    if (!res.ok) throw new Error(`Erro na API: ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn(`Fallback para dados locais no endpoint ${endpoint}:`, err.message);
+    if (localData !== null) return localData;
+    throw err;
+  }
+}
 
 /* ---------------------------------------------------------------
    ESTADO GLOBAL (salvo em sessionStorage para navegar entre páginas)
@@ -319,6 +335,14 @@ const Data = {
     expired: w.trainings.filter(t => t.status === 'red' || t.status === 'amber').length,
     pct: w.compliance, status: w.status, statusLabel: w.statusLabel,
   })),
+
+  summary: {
+    avgCompliance: 84,
+    conformes: 212,
+    emRisco: 76,
+    naoConformes: 24,
+    totalWorkers: 312
+  },
 
   portalTrainings: {
     pending: [
@@ -636,7 +660,14 @@ async function populateAssignTrainingSelect() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   injectSharedHTML();
-  await populateAssignTrainingSelect();
+  
+  // Só popula o select de atribuição se o usuário estiver logado e não estiver na página de login
+  // Isso evita erros 401 desnecessários no console
+  const isLoginPage = window.location.pathname.includes('login.html');
+  if (State.token && !isLoginPage) {
+    await populateAssignTrainingSelect();
+  }
+  
   // Inicializa o Tutor de Segurança IA em todas as páginas internas
   if (typeof initTutor === 'function') initTutor();
 });

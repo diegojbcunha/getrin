@@ -84,6 +84,11 @@
       <label class="form-label">Senha</label>
       <input class="form-input" id="signup-password" type="password" placeholder="Mínimo 6 caracteres" />
     </div>
+    <div class="form-field" style="margin-bottom: 16px;">
+      <label class="form-label">ID da Empresa (Opcional)</label>
+      <input class="form-input" id="signup-company-id" type="text" placeholder="UUID da empresa" value="00000000-0000-0000-0000-000000000000" />
+      <small style="color: var(--text-3); font-size: 11px;">Padrão: Empresa Padrão</small>
+    </div>
     <div class="form-field" style="margin-bottom: 24px;">
       <label class="form-label">Perfil de Acesso</label>
       <select class="form-input" id="signup-role" style="width: 100%;" onchange="toggleSignupInviteField()">

@@ -12,9 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!authGuard()) return;
   document.getElementById('sidebar-mount').innerHTML = renderSidebar('workers');
   try {
-    const res = await fetch(`${API_BASE}/workers`, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error("Erro ao obter trabalhadores");
-    workersData = await res.json();
+    workersData = await fetchWithFallback('/workers', {}, Workers);
     filteredWorkers = [...workersData];
     renderWorkerStats();
     renderWorkerTable(filteredWorkers);

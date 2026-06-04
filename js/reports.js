@@ -22,11 +22,8 @@ async function loadReports(sector = '', role = '', norm = '') {
     if (role)   params.set('role',   role);
     if (norm)   params.set('norm',   norm);
 
-    const url = `${API_BASE}/reports${params.toString() ? '?' + params : ''}`;
-    const res = await fetch(url, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Erro ao obter dados de relatórios');
-
-    const data = await res.json();
+    const endpoint = `/reports${params.toString() ? '?' + params : ''}`;
+    const data = await fetchWithFallback(endpoint, {}, Data);
     _reportData = data;
 
     renderSummaryMetrics(data.summary);

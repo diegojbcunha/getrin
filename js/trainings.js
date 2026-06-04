@@ -9,9 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!authGuard()) return;
   document.getElementById('sidebar-mount').innerHTML = renderSidebar('trainings');
   try {
-    const res = await fetch(`${API_BASE}/trainings`, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error("Erro ao obter treinamentos");
-    trainingsData = await res.json();
+    trainingsData = await fetchWithFallback('/trainings', {}, Trainings);
     renderTrainings(trainingsData);
   } catch (err) {
     console.error(err);

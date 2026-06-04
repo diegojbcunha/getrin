@@ -22,15 +22,13 @@ async function loadDashboard(days) {
   });
 
   try {
-    const res = await fetch(`${API_BASE}/dashboard?days=${days}`, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Erro ao obter dados');
-    const data = await res.json();
+    const data = await fetchWithFallback(`/dashboard?days=${days}`, {}, Data);
     renderMetrics(data.metrics);
     renderAlerts(data.alerts);
     renderActivity(data.recentActivity);
   } catch (err) {
     console.error('Erro no Dashboard:', err);
-    showToast('Erro ao carregar dados do servidor.');
+    showToast('Erro ao carregar dados.');
   }
 }
 
