@@ -10,7 +10,7 @@
 
    MODELO USADO: gemini-1.5-flash (grátis, rápido)
    ============================================================= */
-
+require('dotenv').config(); // Carrega variáveis de ambiente do .env
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // ← substituir pela chave real
 const GEMINI_MODEL   = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
 const GEMINI_URL     =process.env.GEMINI_URL || `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
