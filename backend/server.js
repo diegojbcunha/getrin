@@ -18,6 +18,7 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const reportRoutes    = require('./routes/reportRoutes');
 const alertRoutes     = require('./routes/alertRoutes');
 const settingsRoutes  = require('./routes/settingsRoutes');
+const tutorRoutes     = require('./routes/tutorRoutes');
 
 const app  = express();
 const PORT = process.env.PORT || 3003;
@@ -46,10 +47,19 @@ app.use('/api/dashboard',        dashboardRoutes);
 app.use('/api/reports',          reportRoutes);
 app.use('/api/alerts',           alertRoutes);
 app.use('/api/settings',         settingsRoutes);
+app.use('/api/tutor',            tutorRoutes);
 
 // ── Inicialização do Servidor ──────────────────────────────────
 const server = app.listen(PORT, () => {
   console.log(`✓ Getrin rodando em http://localhost:${PORT}`);
+  
+  // Verificação básica de variáveis críticas
+  if (!process.env.SUPABASE_URL || process.env.SUPABASE_URL.includes('sua-url')) {
+    console.warn('⚠️ AVISO: SUPABASE_URL não configurada corretamente.');
+  }
+  if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'SUA_CHAVE_AQUI') {
+    console.warn('⚠️ AVISO: GEMINI_API_KEY não configurada. O Tutor IA não funcionará.');
+  }
 });
 
 server.on('error', err => {

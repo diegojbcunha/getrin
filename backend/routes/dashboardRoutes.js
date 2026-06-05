@@ -67,6 +67,7 @@ router.get('/', requireAuth, requireManager, async (req, res) => {
       })),
     });
   } catch (err) {
+    console.error('Erro no Dashboard API:', err);
     res.status(500).json({ error: err.message });
   }
 });
