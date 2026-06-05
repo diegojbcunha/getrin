@@ -11,10 +11,9 @@
    MODELO USADO: gemini-1.5-flash (grátis, rápido)
    ============================================================= */
 
-const GEMINI_API_KEY = 'SUA_CHAVE_AQUI'; // ← substituir pela chave real
-const GEMINI_MODEL   = 'gemini-1.5-flash-latest';
-const GEMINI_URL     = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // ← substituir pela chave real
+const GEMINI_MODEL   = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
+const GEMINI_URL     =process.env.GEMINI_URL || `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 /* ──────────────────────────────────────────────────────────────
    PROMPT DE SISTEMA
    Define a personalidade e o contexto do tutor.
