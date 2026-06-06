@@ -41,12 +41,6 @@ Sempre que um colaborador perguntar sobre o andamento de cursos, exames ou buroc
 - Almoxarifado de EPIs: capacete, luva de vaqueta, luva isolante, óculos de proteção, protetor auricular, botina com biqueira, cinto de segurança, máscara PFF2 e avental de raspa.
 `.trim();
 
-const SUGGESTIONS = [
-  'EPI para trabalho elétrico?',
-  'Como emito meu certificado?',
-  'O app funciona sem internet?',
-  'Quais as badges da Gamificação?',
-];
    /* ──────────────────────────────────────────────────────────────
    ESTADO DO CHAT
    ────────────────────────────────────────────────────────────── */
@@ -57,9 +51,9 @@ let _tutorBusy    = false;
 /* Sugestões mostradas na primeira abertura */
 const SUGGESTIONS = [
   'EPI para trabalho elétrico?',
-  'O que é NR-35?',
-  'Como reportar um acidente?',
-  'Validade do treinamento NR-12?',
+  'Como emito meu certificado?',
+  'O app funciona sem internet?',
+  'Quais as badges da Gamificação?',
 ];
 
 /* ──────────────────────────────────────────────────────────────
