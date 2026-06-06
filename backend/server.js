@@ -14,6 +14,7 @@ require('dotenv').config();
 const authRoutes      = require('./routes/authRoutes');
 const workerRoutes    = require('./routes/workerRoutes');
 const trainingRoutes  = require('./routes/trainingRoutes');
+const workerTrainingRoutes = require('./routes/trainingRoutes'); // Alias para clareza, se necessário
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const reportRoutes    = require('./routes/reportRoutes');
 const alertRoutes     = require('./routes/alertRoutes');
@@ -41,8 +42,8 @@ app.get('/login', (_req, res) => res.redirect('/html/login.html'));
 // ── Rotas da API ───────────────────────────────────────────────
 app.use('/api/auth',             authRoutes);
 app.use('/api/workers',          workerRoutes);
+app.use('/api/worker-trainings', trainingRoutes); // IMPORTANTE: Mover para cima para evitar conflito
 app.use('/api/trainings',        trainingRoutes);
-app.use('/api/worker-trainings', trainingRoutes); // Compartilha o mesmo router para simplicidade ou pode ser separado
 app.use('/api/dashboard',        dashboardRoutes);
 app.use('/api/reports',          reportRoutes);
 app.use('/api/alerts',           alertRoutes);

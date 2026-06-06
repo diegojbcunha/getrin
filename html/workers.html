@@ -1,9 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Getrin — Trabalhadores</title>
+  <title>Getrin — Gestão de Trabalhadores</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
@@ -33,7 +35,7 @@
         <button class="btn" onclick="showToast('Importando trabalhadores...')">
           <i class="ti ti-upload"></i>Importar
         </button>
-        <button class="btn btn-primary" onclick="openModal('modal-new-worker')">
+        <button class="btn btn-primary" onclick="openModal('modal-new-worker'); if(typeof loadAvailableUsers==='function') loadAvailableUsers();">
           <i class="ti ti-plus"></i>Novo trabalhador
         </button>
       </div>
@@ -143,21 +145,26 @@
       <i class="ti ti-x modal-close" onclick="closeModal('modal-new-worker')"></i>
     </div>
     <div class="modal-body">
-      <div class="form-grid-2">
-        <div class="form-field">
-          <label class="form-label">Nome completo</label>
-          <input id="new-worker-name" class="form-input" placeholder="Ex: João da Silva" />
-        </div>
-        <div class="form-field">
-          <label class="form-label">Matrícula</label>
-          <input id="new-worker-matricula" class="form-input" placeholder="Ex: #00512" />
+      <div class="form-field">
+        <label class="form-label">Selecionar Usuário (da users_profile)</label>
+        <select id="new-worker-user-id" class="form-select">
+          <option value="">Carregando usuários disponíveis...</option>
+        </select>
+        <div style="font-size: 10px; color: var(--text-3); margin-top: 4px;">
+          Apenas usuários com perfil "Trabalhador" que ainda não foram vinculados.
         </div>
       </div>
       <div class="form-grid-2">
         <div class="form-field">
-          <label class="form-label">Função</label>
-          <input id="new-worker-role" class="form-input" placeholder="Ex: Eletricista Pleno" />
+          <label class="form-label">Matrícula</label>
+          <input id="new-worker-matricula" class="form-input" placeholder="Ex: #00123" />
         </div>
+        <div class="form-field">
+          <label class="form-label">Função / Cargo</label>
+          <input id="new-worker-role" class="form-input" placeholder="Ex: Operador de Prensa" />
+        </div>
+      </div>
+      <div class="form-field">
         <div class="form-field">
           <label class="form-label">Setor</label>
           <select id="new-worker-sector" class="form-select">
@@ -173,20 +180,22 @@
       <div class="form-grid-2">
         <div class="form-field">
           <label class="form-label">Gestor responsável</label>
-          <select id="new-worker-manager" class="form-select">
-            <option value="Paulo Henrique">Paulo Henrique</option>
-            <option value="Lucas Andrade">Lucas Andrade</option>
-            <option value="Renata Lima">Renata Lima</option>
-          </select>
+          <input id="new-worker-manager" class="form-input" placeholder="Ex: Paulo Henrique" />
         </div>
         <div class="form-field">
           <label class="form-label">Data de admissão</label>
           <input id="new-worker-admission" class="form-input" type="date" />
         </div>
       </div>
-      <div class="form-field">
-        <label class="form-label">E-mail corporativo</label>
-        <input id="new-worker-email" class="form-input" type="email" placeholder="joao@empresa.com.br" />
+      <div class="form-grid-2">
+        <div class="form-field">
+          <label class="form-label">E-mail corporativo</label>
+          <input id="new-worker-email" class="form-input" type="email" placeholder="joao@empresa.com.br" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">Telefone</label>
+          <input id="new-worker-phone" class="form-input" type="tel" placeholder="(00) 00000-0000" />
+        </div>
       </div>
     </div>
     <div class="modal-footer">

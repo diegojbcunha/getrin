@@ -51,3 +51,26 @@
 .login-company { display: flex; align-items: center; gap: 7px; margin-top: 18px; }
 .login-company .ti  { font-size: 13px; color: var(--text-3); }
 .login-company span { font-size: 11px; color: var(--text-3); }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 400px) {
+  .login-card {
+    width: 100%;
+    margin: 20px;
+    padding: 24px 20px;
+  }
+  .role-selector {
+    grid-template-columns: 1fr;
+  }
+  .role-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    text-align: left;
+  }
+  .role-option .ti {
+    margin-bottom: 0;
+    font-size: 16px;
+  }
+}

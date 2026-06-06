@@ -198,6 +198,21 @@
   display: flex;
   align-items: center;
   gap: 7px;
+}
+
+/* ── Responsividade ──────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .tutor-panel {
+    width: calc(100vw - 32px);
+    right: 16px;
+    bottom: 70px;
+    max-height: 60vh;
+  }
+  .tutor-fab {
+    bottom: 16px;
+    right: 16px;
+  }
+}
   padding: 9px 13px;
   border-top: 0.5px solid var(--border);
   flex-shrink: 0;

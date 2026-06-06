@@ -11,8 +11,15 @@ let sortDir   = 'asc';
 document.addEventListener('DOMContentLoaded', async () => {
   if (!authGuard()) return;
   document.getElementById('sidebar-mount').innerHTML = renderSidebar('workers');
+  await initWorkers();
+});
+
+/**
+ * Carrega a lista de trabalhadores vinculados
+ */
+async function loadWorkers() {
   try {
-    workersData = await fetchWithFallback('/workers', {}, Workers);
+    workersData = await fetchWithFallback('/workers', {}, []);
     filteredWorkers = [...workersData];
     renderWorkerStats();
     renderWorkerTable(filteredWorkers);
@@ -20,7 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error(err);
     showToast("Erro ao carregar trabalhadores.");
   }
-});
+}
 
 /* ---- Métricas resumidas ---- */
 function renderWorkerStats() {
@@ -88,25 +95,72 @@ function openWorker(id) {
   window.location.href = '/html/profile.html';
 }
 
+let _availableUsers = [];
+
+/**
+ * Inicializa a página de trabalhadores
+ */
+async function initWorkers() {
+  await loadWorkers();
+  await loadAvailableUsers(); // Carrega usuários que podem ser transformados em workers
+}
+
+/**
+ * Busca usuários da users_profile que ainda não são workers
+ */
+async function loadAvailableUsers() {
+  const select = document.getElementById('new-worker-user-id');
+  if (!select) return;
+
+  try {
+    const data = await fetchWithFallback('/workers/available-users', {}, []);
+    _availableUsers = data;
+
+    if (data.length === 0) {
+      select.innerHTML = '<option value="">Nenhum usuário disponível</option>';
+      return;
+    }
+
+    select.innerHTML = '<option value="">Selecione um usuário...</option>' + 
+      data.map(u => `<option value="${u.id}">${u.name} (${u.id.substring(0,8)}...)</option>`).join('');
+  } catch (err) {
+    console.error('Erro ao carregar usuários:', err);
+    select.innerHTML = '<option value="">Erro ao carregar</option>';
+  }
+}
+
+/**
+ * Cadastrar novo trabalhador
+ */
 async function submitNewWorker() {
-  const name = document.getElementById('new-worker-name')?.value.trim() || '';
-  const matricula = document.getElementById('new-worker-matricula')?.value.trim() || '';
+  const userId = document.getElementById('new-worker-user-id')?.value;
+  const matricula = document.getElementById('new-worker-matricula')?.value.trim() || 'Aguardando';
   const role = document.getElementById('new-worker-role')?.value.trim() || '';
   const sector = document.getElementById('new-worker-sector')?.value || '';
-  const manager = document.getElementById('new-worker-manager')?.value || '';
+  const manager = document.getElementById('new-worker-manager')?.value.trim() || '';
   const admission = document.getElementById('new-worker-admission')?.value || '';
+  const phone = document.getElementById('new-worker-phone')?.value.trim() || '';
   const email = document.getElementById('new-worker-email')?.value.trim() || '';
 
-  if (!name || !email) {
-    showToast('Informe o nome e e-mail do trabalhador.');
+  if (!userId) {
+    showToast('Selecione um usuário para vincular.');
     return;
   }
+  if (!role || !sector) {
+    showToast('Informe a função e o setor.');
+    return;
+  }
+
+  // Encontra o nome do usuário selecionado para enviar ao backend
+  const selectedUser = _availableUsers.find(u => u.id === userId);
+  const name = selectedUser ? selectedUser.name : 'Novo Trabalhador';
 
   try {
     const res = await fetch(`${API_BASE}/workers`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
+        id: userId, // ID da users_profile
         name,
         initials: name.split(' ').map(p => p[0].toUpperCase()).slice(0, 2).join(''),
         matricula,
@@ -114,26 +168,27 @@ async function submitNewWorker() {
         sector,
         manager,
         admission,
-        email,
-        phone: '—'
+        phone,
+        email
       })
     });
 
-    const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.error || 'Erro ao cadastrar trabalhador.');
+      const err = await res.json();
+      throw new Error(err.error || 'Erro ao cadastrar');
     }
 
-    workersData.unshift(data);
-    filteredWorkers = [...workersData];
-    renderWorkerStats();
-    renderWorkerTable(filteredWorkers);
-
+    showToast('Trabalhador vinculado com sucesso!');
     closeModal('modal-new-worker');
-    showToast('Trabalhador cadastrado com sucesso.');
+    // Tenta recarregar se as funções existirem, caso contrário usa o fallback
+    if (typeof loadWorkers === 'function') {
+      await loadWorkers();
+      await loadAvailableUsers();
+    } else {
+      window.location.reload();
+    }
   } catch (err) {
-    console.error(err);
-    showToast(err.message || 'Erro ao cadastrar trabalhador.');
+    showToast(err.message);
   }
 }
 

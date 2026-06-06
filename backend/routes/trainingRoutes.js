@@ -6,7 +6,7 @@ const supabase = require('../supabaseClient');
 const { requireAuth, requireManager } = require('../middlewares/auth');
 const { loadLocalDb, saveLocalDb } = require('../repositories/localRepository');
 const { ensureWorkerRecord, recalculateCompliance } = require('../repositories/supabaseRepository');
-const { calcExpiryDate, calcExpiryColor } = require('../utils/helpers');
+const { calcExpiryDate, calcExpiryColor, parseExpiryDate } = require('../utils/helpers');
 
 // --- Trainings Catalog ---
 
@@ -90,7 +90,8 @@ router.delete('/:id', requireAuth, async (req, res) => {
 
 // --- Worker Training Assignments (mounted at /api/worker-trainings) ---
 
-router.post('/', requireAuth, requireManager, async (req, res) => {
+// Rota específica para atribuição para evitar conflito com a criação de treinamentos
+router.post('/assign', requireAuth, requireManager, async (req, res) => {
   try {
     const { worker_id, worker_email, training_id, progress, done, expires, status, status_label } = req.body;
     if (!worker_id && !worker_email)
@@ -128,7 +129,7 @@ router.post('/', requireAuth, requireManager, async (req, res) => {
           progress: progress ?? 0, 
           done: done || '—',
           done_at: doneAt, // Campo exigido pelo novo trigger de alertas
-          expires: finalExpires, expires_color: finalExpiresColor,
+          expires: finalExpires,
           status: status || 'gray', status_label: status_label || 'Pendente',
         }]).select().single();
       if (error) throw error;
@@ -173,7 +174,7 @@ router.put('/:id', requireAuth, requireManager, async (req, res) => {
     }
 
     const { data, error } = await supabase.from('worker_trainings')
-      .update({ progress, done, done_at, expires, expires_color, status, status_label })
+      .update({ progress, done, done_at, expires, status, status_label })
       .eq('id', req.params.id).select().single();
     if (error) throw error;
     await recalculateCompliance(data.worker_id);

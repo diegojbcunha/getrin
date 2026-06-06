@@ -9,7 +9,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!authGuard()) return;
   document.getElementById('sidebar-mount').innerHTML = renderSidebar('portal', true);
   try {
-    const w = await fetchWithFallback('/workers/me', {}, Workers[0]);
+    const w = await fetchWithFallback('/workers/me', {}, null);
+    if (!w) throw new Error("Sessão expirada ou trabalhador não encontrado");
     _currentWorkerData = w;
     
     // Atualiza a barra lateral com o nome e badge corretos

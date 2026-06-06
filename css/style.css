@@ -379,8 +379,97 @@ td.td-mono    { font-family: var(--mono); font-size: 11px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-md); border-radius: 3px; }
 
+/* ===== PWA INSTALL BUTTON ===== */
+.sidebar-install-box {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; margin: 0 10px 14px 10px;
+  background: var(--blue-50); border: 0.5px solid var(--blue-200);
+  border-radius: var(--radius); color: var(--blue-700);
+  font-size: 11px; font-weight: 500; cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+.sidebar-install-box:hover { background: var(--blue-100); }
+.sidebar-install-box:active { transform: scale(0.98); }
+.sidebar-install-box .ti { font-size: 14px; }
+
 /* ===== RESPONSIVE ===== */
-@media (max-width: 900px) {
-  .metrics-row { grid-template-columns: repeat(2, 1fr); }
-  .two-col     { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  :root {
+    --sidebar-w: 240px; /* Um pouco maior no mobile para toque */
+  }
+
+  body { overflow: auto; }
+  .app { flex-direction: column; height: auto; overflow: visible; }
+  
+  /* Sidebar Mobile - Off-canvas */
+  .sidebar {
+    position: fixed;
+    left: calc(-1 * var(--sidebar-w));
+    top: 0;
+    bottom: 0;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 10px 0 30px rgba(0,0,0,0.2);
+  }
+  .sidebar.open {
+    transform: translateX(var(--sidebar-w));
+  }
+
+  /* Main Area */
+  .main { height: auto; overflow: visible; }
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 0 12px;
+  }
+  
+  .content-area {
+    padding: 14px 16px;
+  }
+
+  /* Grid Adjustments */
+  .metrics-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .two-col { grid-template-columns: 1fr; gap: 10px; }
+  
+  /* Table Responsiveness */
+  .panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 500px; } /* Força scroll lateral em tabelas */
+
+  /* Forms */
+  .form-grid-2 { grid-template-columns: 1fr; }
+  
+  /* Metric Cards Mobile */
+  .metric-value { font-size: 20px; }
+  .metric-label { font-size: 9px; }
+
+  /* Hamburger Menu Button */
+  .menu-toggle {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+    color: var(--text-2);
+    cursor: pointer;
+    margin-right: 8px;
+  }
+
+  /* Overlay para fechar o menu ao clicar fora */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 15;
+  }
+  .sidebar-overlay.show { display: block; }
+}
+
+@media (max-width: 480px) {
+  .metrics-row { grid-template-columns: 1fr; }
+  .topbar-right .btn span { display: none; } /* Esconde texto de botões na topbar */
+  .topbar-right .btn { padding: 5px 8px; }
+  
+  .topbar-title { font-size: 12px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }

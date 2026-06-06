@@ -197,3 +197,25 @@
   align-items: center;
   gap: 8px;
 }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .empresa-layout {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .empresa-sidebar-col {
+    width: 100%;
+    position: static;
+  }
+  .empresa-form-col {
+    width: 100%;
+  }
+  .logo-upload-area {
+    flex-direction: row;
+    padding: 12px;
+  }
+  .logo-upload-hint {
+    text-align: left;
+  }
+}

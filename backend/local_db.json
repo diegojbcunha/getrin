@@ -17,6 +17,22 @@
       "status": "gray",
       "status_label": "Pendente",
       "trainings": []
+    },
+    {
+      "id": "local-worker-1780708294250",
+      "name": "Worker Teste",
+      "initials": "WT",
+      "matricula": "#94255",
+      "role": "Colaborador",
+      "sector": "—",
+      "manager": "—",
+      "admission": "05/06/2026",
+      "email": "worker.teste@getrin.com",
+      "phone": "—",
+      "compliance": 0,
+      "status": "gray",
+      "status_label": "Pendente",
+      "trainings": []
     }
   ]
 }

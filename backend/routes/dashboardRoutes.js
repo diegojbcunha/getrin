@@ -28,10 +28,10 @@ router.get('/', requireAuth, requireManager, async (req, res) => {
 
     const { data: activities, error: actErr } = await supabase
       .from('worker_trainings')
-      .select('done, status, status_label, created_at, workers!inner(name, company_id), trainings(name,norm)')
+      .select('status, status_label, created_at, workers!inner(name, company_id), trainings(name,norm)')
       .eq('workers.company_id', company_id)
       .order('created_at', { ascending: false }).limit(5);
-    if (actErr) throw actErr;
+    if (actErr) console.error('Erro ao buscar atividades:', actErr);
 
     const { data: allWt, error: wtErr } = await supabase
       .from('worker_trainings')
@@ -61,7 +61,7 @@ router.get('/', requireAuth, requireManager, async (req, res) => {
         name:        wt.workers?.name     || 'Desconhecido',
         training:    wt.trainings?.name   || 'Desconhecido',
         norm:        wt.trainings?.norm   || '—',
-        date:        wt.done !== '—' ? wt.done : 'Em andamento',
+        date:        wt.done ? wt.done : (wt.created_at ? new Date(wt.created_at).toLocaleDateString('pt-BR') : '—'),
         status:      wt.status,
         statusLabel: wt.status_label,
       })),

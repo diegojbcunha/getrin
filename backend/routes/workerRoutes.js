@@ -6,6 +6,7 @@ const supabase = require('../supabaseClient');
 const { requireAuth, requireManager } = require('../middlewares/auth');
 const { ensureWorkerRecord } = require('../repositories/supabaseRepository');
 const { loadLocalDb } = require('../repositories/localRepository');
+const { calcExpiryColor } = require('../utils/helpers');
 
 // Listar todos (gestor/admin da empresa logada)
 router.get('/', requireAuth, requireManager, async (req, res) => {
@@ -19,6 +20,42 @@ router.get('/', requireAuth, requireManager, async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Listar usuários da users_profile que podem ser transformados em workers.
+ * Filtra usuários com role 'worker' da mesma empresa que ainda não estão na tabela workers.
+ */
+router.get('/available-users', requireAuth, requireManager, async (req, res) => {
+  try {
+    const { company_id } = req.session;
+
+    // Busca IDs que já estão na tabela workers
+    const { data: existingWorkers, error: eError } = await supabase
+      .from('workers')
+      .select('id')
+      .eq('company_id', company_id);
+    
+    if (eError) throw eError;
+    const existingIds = (existingWorkers || []).map(w => w.id);
+
+    // Busca usuários com role 'worker' da mesma empresa
+    const { data: profiles, error: pError } = await supabase
+      .from('users_profile')
+      .select('id, name')
+      .eq('company_id', company_id)
+      .eq('role', 'worker');
+
+    if (pError) throw pError;
+
+    // Filtra apenas os que ainda não são workers
+    const available = profiles.filter(p => !existingIds.includes(p.id));
+
+    res.json(available);
+  } catch (err) {
+    console.error('Erro ao buscar usuários disponíveis:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -44,7 +81,7 @@ router.get('/me', requireAuth, async (req, res) => {
     });
   } else {
     const { data, error } = await supabase.from('worker_trainings')
-      .select('id, progress, done, expires, expires_color, status, status_label, trainings(id,name,norm)')
+      .select('id, progress, done, expires, status, status_label, trainings(id,name,norm)')
       .eq('worker_id', worker.id);
     if (error) throw error;
 
@@ -52,7 +89,8 @@ router.get('/me', requireAuth, async (req, res) => {
       id: t.id, training_id: t.trainings?.id,
       name: t.trainings?.name, norm: t.trainings?.norm,
       progress: t.progress, done: t.done, expires: t.expires,
-      expiresColor: t.expires_color, status: t.status, statusLabel: t.status_label,
+      expires_color: calcExpiryColor(t.expires),
+      status: t.status, statusLabel: t.status_label,
     }));
 
     // Mescla atribuições locais
@@ -84,7 +122,7 @@ router.get('/:id', requireAuth, requireManager, async (req, res) => {
     if (wErr) throw wErr;
 
     const { data: trainings, error: tErr } = await supabase.from('worker_trainings')
-      .select('id, progress, done, expires, expires_color, status, status_label, trainings(id,name,norm)')
+      .select('id, progress, done, expires, status, status_label, trainings(id,name,norm)')
       .eq('worker_id', req.params.id);
     if (tErr) throw tErr;
 
@@ -94,7 +132,8 @@ router.get('/:id', requireAuth, requireManager, async (req, res) => {
         id: t.id, training_id: t.trainings?.id,
         name: t.trainings?.name, norm: t.trainings?.norm,
         progress: t.progress, done: t.done, expires: t.expires,
-        expiresColor: t.expires_color, status: t.status, status_label: t.status_label,
+        expires_color: calcExpiryColor(t.expires),
+        status: t.status, status_label: t.status_label,
       })),
     });
   } catch (err) {
@@ -106,16 +145,23 @@ router.get('/:id', requireAuth, requireManager, async (req, res) => {
 router.post('/', requireAuth, requireManager, async (req, res) => {
   try {
     const { company_id } = req.session;
-    const { name, initials, matricula, role, sector, manager, admission, email, phone } = req.body;
-    if (!name || !email || !role || !sector)
-      return res.status(400).json({ error: 'Campos obrigatórios: name, email, role, sector.' });
+    const { id, name, initials, matricula, role, sector, manager, admission, email, phone } = req.body;
+    
+    // Agora o nome e email podem vir do frontend após selecionar o usuário ou serem validados
+    if (!name || !role || !sector)
+      return res.status(400).json({ error: 'Campos obrigatórios: name, role, sector.' });
+
+    const insertData = { 
+      company_id,
+      name, initials, matricula, role, sector, manager, admission, email, phone,
+      compliance: 0, status: 'gray', status_label: 'Pendente' 
+    };
+
+    // Se um ID da users_profile foi fornecido, usamos ele (FK obrigatória)
+    if (id) insertData.id = id;
 
     const { data, error } = await supabase.from('workers')
-      .insert([{ 
-        company_id, // Vincula à empresa do gestor
-        name, initials, matricula, role, sector, manager, admission, email, phone,
-        compliance: 0, status: 'gray', status_label: 'Pendente' 
-      }])
+      .insert([insertData])
       .select().single();
     if (error) throw error;
     res.status(201).json(data);
@@ -127,10 +173,16 @@ router.post('/', requireAuth, requireManager, async (req, res) => {
 // Atualizar trabalhador (gestor/admin)
 router.put('/:id', requireAuth, requireManager, async (req, res) => {
   try {
-    const { compliance: _c, status: _s, status_label: _sl, ...safeBody } = req.body;
+    const { id: _id, company_id: _cid, compliance: _c, status: _s, status_label: _sl, created_at: _ca, ...safeBody } = req.body;
+    
+    // Garante que não estamos tentando atualizar campos sensíveis ou inexistentes
     const { data, error } = await supabase.from('workers')
       .update(safeBody).eq('id', req.params.id).select().single();
-    if (error) throw error;
+    
+    if (error) {
+      console.error('Erro ao atualizar worker:', error);
+      return res.status(400).json({ error: error.message });
+    }
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });

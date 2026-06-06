@@ -11,8 +11,50 @@ const API_BASE = (location.hostname === 'localhost' || location.hostname === '12
   ? `http://${location.hostname}:3003/api`
   : '/api';
 
+/* ---------------------------------------------------------------
+   INDEXEDDB — Armazenamento Offline
+   --------------------------------------------------------------- */
+const DB_NAME = 'GetrinDB';
+const DB_VERSION = 1;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('cache')) {
+        db.createObjectStore('cache', { keyPath: 'endpoint' });
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function getLocalCache(endpoint) {
+  try {
+    const db = await openDB();
+    const tx = db.transaction('cache', 'readonly');
+    const store = tx.objectStore('cache');
+    return new Promise((resolve) => {
+      const request = store.get(endpoint);
+      request.onsuccess = () => resolve(request.result?.data || null);
+      request.onerror = () => resolve(null);
+    });
+  } catch (_) { return null; }
+}
+
+async function setLocalCache(endpoint, data) {
+  try {
+    const db = await openDB();
+    const tx = db.transaction('cache', 'readwrite');
+    const store = tx.objectStore('cache');
+    store.put({ endpoint, data, updated_at: new Date().toISOString() });
+  } catch (_) { /* ignore */ }
+}
+
 /**
- * Tenta buscar dados do servidor. Se falhar, retorna os dados locais.
+ * Tenta buscar dados do servidor. Se falhar, retorna os dados locais (IndexedDB).
  */
 async function fetchWithFallback(endpoint, options = {}, localData = null) {
   try {
@@ -21,9 +63,21 @@ async function fetchWithFallback(endpoint, options = {}, localData = null) {
       headers: { ...getAuthHeaders(), ...options.headers }
     });
     if (!res.ok) throw new Error(`Erro na API: ${res.status}`);
-    return await res.json();
+    const data = await res.json();
+    
+    // Salva no cache local para uso offline
+    if (options.method === 'GET' || !options.method) {
+      await setLocalCache(endpoint, data);
+    }
+    
+    return data;
   } catch (err) {
-    console.warn(`Fallback para dados locais no endpoint ${endpoint}:`, err.message);
+    console.warn(`Fallback para cache local no endpoint ${endpoint}:`, err.message);
+    
+    // Tenta obter do IndexedDB
+    const cached = await getLocalCache(endpoint);
+    if (cached) return cached;
+
     if (localData !== null) return localData;
     throw err;
   }
@@ -102,258 +156,27 @@ async function doLogout() {
 }
 
 /* ---------------------------------------------------------------
-   CATÁLOGO DE TREINAMENTOS
+   CATÁLOGO DE TREINAMENTOS (Agora via API/Supabase)
    --------------------------------------------------------------- */
-const Trainings = [
-  { id: 't01', name: 'Segurança em instalações elétricas', norm: 'NR-10', hours: '40h', validity: '2 anos', roles: 'Eletricista, Manut.', mode: 'Presencial', status: 'green', statusLabel: 'Ativo'         },
-  { id: 't02', name: 'Máquinas e equipamentos',            norm: 'NR-12', hours: '16h', validity: '1 ano',  roles: 'Operador, Técnico',   mode: 'EAD',        status: 'green', statusLabel: 'Ativo'         },
-  { id: 't03', name: 'Trabalho em altura',                 norm: 'NR-35', hours: '8h',  validity: '2 anos', roles: 'Manut., Construção',  mode: 'Híbrido',    status: 'green', statusLabel: 'Ativo'         },
-  { id: 't04', name: 'Primeiros socorros e emergências',   norm: 'NR-07', hours: '8h',  validity: '1 ano',  roles: 'Todos colaboradores', mode: 'EAD',        status: 'amber', statusLabel: 'Em revisão'    },
-  { id: 't05', name: 'Espaço confinado',                   norm: 'NR-33', hours: '16h', validity: '1 ano',  roles: 'Manutenção',          mode: 'Presencial', status: 'green', statusLabel: 'Ativo'         },
-  { id: 't06', name: 'Proteção contra incêndio',           norm: 'NR-23', hours: '4h',  validity: '2 anos', roles: 'Brigada de incêndio', mode: 'EAD',        status: 'red',   statusLabel: 'Descontinuado' },
-  { id: 't07', name: 'Ergonomia no trabalho',              norm: 'NR-17', hours: '4h',  validity: '2 anos', roles: 'Todos colaboradores', mode: 'EAD',        status: 'green', statusLabel: 'Ativo'         },
-  { id: 't08', name: 'Equipamentos de proteção individual',norm: 'NR-06', hours: '4h',  validity: '1 ano',  roles: 'Todos colaboradores', mode: 'EAD',        status: 'green', statusLabel: 'Ativo'         },
-];
+const Trainings = []; // Mantido vazio para compatibilidade se algum script antigo referenciar
 
 /* ---------------------------------------------------------------
-   TRABALHADORES — cada um com perfil completo e treinamentos
+   TRABALHADORES (Agora via API/Supabase)
    --------------------------------------------------------------- */
-const Workers = [
-  {
-    id: 'w001',
-    name: 'Carlos Alberto Mendes', initials: 'CAM', matricula: '#00412',
-    role: 'Eletricista Sênior', sector: 'Infraestrutura',
-    manager: 'Paulo Henrique', admission: 'Mar 2019',
-    email: 'c.mendes@metalurgica.com.br', phone: '(71) 99801-2233',
-    compliance: 67, status: 'amber', statusLabel: 'Em risco',
-    trainings: [
-      { name: 'Segurança em instalações elétricas', norm: 'NR-10', progress: 100, done: 'Jun 2024', expires: 'Jun 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido'       },
-      { name: 'Máquinas e equipamentos',            norm: 'NR-12', progress: 100, done: 'Ago 2023', expires: 'Ago 2024', expiresColor: 'amber', status: 'amber', statusLabel: 'Vencido'      },
-      { name: 'Trabalho em altura',                 norm: 'NR-35', progress: 60,  done: '—',        expires: '—',        expiresColor: '',      status: 'blue',  statusLabel: 'Em andamento' },
-      { name: 'Primeiros socorros e emergências',   norm: 'NR-07', progress: 0,   done: '—',        expires: '—',        expiresColor: '',      status: 'gray',  statusLabel: 'Pendente'     },
-    ],
-  },
-  {
-    id: 'w002',
-    name: 'Fernanda Rocha', initials: 'FR', matricula: '#00389',
-    role: 'Técnica de Segurança', sector: 'Manutenção',
-    manager: 'Lucas Andrade', admission: 'Jan 2020',
-    email: 'f.rocha@metalurgica.com.br', phone: '(71) 99700-4455',
-    compliance: 100, status: 'green', statusLabel: 'Conforme',
-    trainings: [
-      { name: 'Segurança em instalações elétricas', norm: 'NR-10', progress: 100, done: 'Abr 2024', expires: 'Abr 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Trabalho em altura',                 norm: 'NR-35', progress: 100, done: 'Mai 2024', expires: 'Mai 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Espaço confinado',                   norm: 'NR-33', progress: 100, done: 'Jan 2025', expires: 'Jan 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Primeiros socorros e emergências',   norm: 'NR-07', progress: 100, done: 'Mar 2025', expires: 'Mar 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-    ],
-  },
-  {
-    id: 'w003',
-    name: 'Maria Santos', initials: 'MS', matricula: '#00451',
-    role: 'Operadora de Prensa', sector: 'Produção',
-    manager: 'Renata Lima', admission: 'Jun 2021',
-    email: 'm.santos@metalurgica.com.br', phone: '(71) 98833-6677',
-    compliance: 0, status: 'red', statusLabel: 'Não conforme',
-    trainings: [
-      { name: 'Máquinas e equipamentos',            norm: 'NR-12', progress: 100, done: 'Fev 2023', expires: 'Fev 2024', expiresColor: 'amber', status: 'red',  statusLabel: 'Vencido'  },
-      { name: 'Primeiros socorros e emergências',   norm: 'NR-07', progress: 100, done: 'Jan 2023', expires: 'Jan 2024', expiresColor: 'amber', status: 'red',  statusLabel: 'Vencido'  },
-      { name: 'Ergonomia no trabalho',              norm: 'NR-17', progress: 0,   done: '—',        expires: '—',        expiresColor: '',      status: 'gray', statusLabel: 'Pendente' },
-    ],
-  },
-  {
-    id: 'w004',
-    name: 'Roberto Lima', initials: 'RL', matricula: '#00298',
-    role: 'Supervisor Logístico', sector: 'Logística',
-    manager: 'Paulo Henrique', admission: 'Ago 2017',
-    email: 'r.lima@metalurgica.com.br', phone: '(71) 99655-8899',
-    compliance: 100, status: 'green', statusLabel: 'Conforme',
-    trainings: [
-      { name: 'Ergonomia no trabalho',              norm: 'NR-17', progress: 100, done: 'Nov 2024', expires: 'Nov 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Primeiros socorros e emergências',   norm: 'NR-07', progress: 100, done: 'Out 2024', expires: 'Out 2025', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Equipamentos de proteção individual',norm: 'NR-06', progress: 100, done: 'Set 2024', expires: 'Set 2025', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Proteção contra incêndio',           norm: 'NR-23', progress: 100, done: 'Dez 2023', expires: 'Dez 2025', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Máquinas e equipamentos',            norm: 'NR-12', progress: 100, done: 'Jul 2024', expires: 'Jul 2025', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-    ],
-  },
-  {
-    id: 'w005',
-    name: 'Antônio Leal', initials: 'AL', matricula: '#00467',
-    role: 'Operador de Máquinas', sector: 'Produção',
-    manager: 'Renata Lima', admission: 'Fev 2022',
-    email: 'a.leal@metalurgica.com.br', phone: '(71) 98744-1122',
-    compliance: 67, status: 'amber', statusLabel: 'Em risco',
-    trainings: [
-      { name: 'Máquinas e equipamentos',            norm: 'NR-12', progress: 100, done: 'Mar 2024', expires: 'Mar 2025', expiresColor: 'amber', status: 'amber', statusLabel: 'Vencendo' },
-      { name: 'Ergonomia no trabalho',              norm: 'NR-17', progress: 100, done: 'Abr 2024', expires: 'Abr 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido'   },
-      { name: 'Primeiros socorros e emergências',   norm: 'NR-07', progress: 45,  done: '—',        expires: '—',        expiresColor: '',      status: 'blue',  statusLabel: 'Em andamento' },
-    ],
-  },
-  {
-    id: 'w006',
-    name: 'Juliana Costa', initials: 'JC', matricula: '#00312',
-    role: 'Analista de Qualidade', sector: 'Qualidade',
-    manager: 'Lucas Andrade', admission: 'Nov 2018',
-    email: 'j.costa@metalurgica.com.br', phone: '(71) 99510-3344',
-    compliance: 100, status: 'green', statusLabel: 'Conforme',
-    trainings: [
-      { name: 'Ergonomia no trabalho',              norm: 'NR-17', progress: 100, done: 'Jan 2025', expires: 'Jan 2027', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Primeiros socorros e emergências',   norm: 'NR-07', progress: 100, done: 'Fev 2025', expires: 'Fev 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Equipamentos de proteção individual',norm: 'NR-06', progress: 100, done: 'Mar 2025', expires: 'Mar 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Proteção contra incêndio',           norm: 'NR-23', progress: 100, done: 'Abr 2024', expires: 'Abr 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Máquinas e equipamentos',            norm: 'NR-12', progress: 100, done: 'Mai 2024', expires: 'Mai 2025', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-    ],
-  },
-  {
-    id: 'w007',
-    name: 'Marcos Pereira', initials: 'MP', matricula: '#00501',
-    role: 'Eletricista Pleno', sector: 'Infraestrutura',
-    manager: 'Paulo Henrique', admission: 'Mai 2023',
-    email: 'm.pereira@metalurgica.com.br', phone: '(71) 98622-5566',
-    compliance: 50, status: 'amber', statusLabel: 'Em risco',
-    trainings: [
-      { name: 'Segurança em instalações elétricas', norm: 'NR-10', progress: 100, done: 'Jun 2023', expires: 'Jun 2025', expiresColor: 'amber', status: 'amber', statusLabel: 'Vencendo' },
-      { name: 'Primeiros socorros e emergências',   norm: 'NR-07', progress: 100, done: 'Jul 2023', expires: 'Jul 2024', expiresColor: 'amber', status: 'red',   statusLabel: 'Vencido'  },
-      { name: 'Trabalho em altura',                 norm: 'NR-35', progress: 0,   done: '—',        expires: '—',        expiresColor: '',      status: 'gray',  statusLabel: 'Pendente' },
-      { name: 'Ergonomia no trabalho',              norm: 'NR-17', progress: 100, done: 'Ago 2023', expires: 'Ago 2025', expiresColor: 'green', status: 'green', statusLabel: 'Válido'   },
-    ],
-  },
-  {
-    id: 'w008',
-    name: 'Cláudia Ferreira', initials: 'CF', matricula: '#00433',
-    role: 'Técnica de Produção', sector: 'Produção',
-    manager: 'Renata Lima', admission: 'Set 2020',
-    email: 'c.ferreira@metalurgica.com.br', phone: '(71) 99388-7788',
-    compliance: 33, status: 'red', statusLabel: 'Não conforme',
-    trainings: [
-      { name: 'Máquinas e equipamentos',            norm: 'NR-12', progress: 100, done: 'Out 2022', expires: 'Out 2023', expiresColor: 'amber', status: 'red',  statusLabel: 'Vencido'  },
-      { name: 'Ergonomia no trabalho',              norm: 'NR-17', progress: 100, done: 'Nov 2023', expires: 'Nov 2025', expiresColor: 'green', status: 'green',statusLabel: 'Válido'   },
-      { name: 'Primeiros socorros e emergências',   norm: 'NR-07', progress: 20,  done: '—',        expires: '—',        expiresColor: '',      status: 'blue', statusLabel: 'Em andamento' },
-    ],
-  },
-  {
-    id: 'w009',
-    name: 'Diego Nascimento', initials: 'DN', matricula: '#00388',
-    role: 'Mecânico de Manutenção', sector: 'Manutenção',
-    manager: 'Lucas Andrade', admission: 'Mar 2016',
-    email: 'd.nascimento@metalurgica.com.br', phone: '(71) 99211-9900',
-    compliance: 100, status: 'green', statusLabel: 'Conforme',
-    trainings: [
-      { name: 'Trabalho em altura',                 norm: 'NR-35', progress: 100, done: 'Jan 2025', expires: 'Jan 2027', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Espaço confinado',                   norm: 'NR-33', progress: 100, done: 'Fev 2025', expires: 'Fev 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Primeiros socorros e emergências',   norm: 'NR-07', progress: 100, done: 'Mar 2024', expires: 'Mar 2025', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Ergonomia no trabalho',              norm: 'NR-17', progress: 100, done: 'Abr 2024', expires: 'Abr 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-    ],
-  },
-  {
-    id: 'w010',
-    name: 'Patricia Souza', initials: 'PS', matricula: '#00419',
-    role: 'Coordenadora Administrativa', sector: 'Administrativo',
-    manager: 'Paulo Henrique', admission: 'Jul 2015',
-    email: 'p.souza@metalurgica.com.br', phone: '(71) 99044-1010',
-    compliance: 100, status: 'green', statusLabel: 'Conforme',
-    trainings: [
-      { name: 'Ergonomia no trabalho',              norm: 'NR-17', progress: 100, done: 'Mai 2024', expires: 'Mai 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Primeiros socorros e emergências',   norm: 'NR-07', progress: 100, done: 'Jun 2024', expires: 'Jun 2025', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Proteção contra incêndio',           norm: 'NR-23', progress: 100, done: 'Jul 2023', expires: 'Jul 2025', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-    ],
-  },
-  {
-    id: 'w011',
-    name: 'Eduardo Alves', initials: 'EA', matricula: '#00476',
-    role: 'Operador de Caldeira', sector: 'Produção',
-    manager: 'Renata Lima', admission: 'Dez 2021',
-    email: 'e.alves@metalurgica.com.br', phone: '(71) 98977-1122',
-    compliance: 67, status: 'amber', statusLabel: 'Em risco',
-    trainings: [
-      { name: 'Máquinas e equipamentos',            norm: 'NR-12', progress: 100, done: 'Jan 2024', expires: 'Jan 2025', expiresColor: 'amber', status: 'amber', statusLabel: 'Vencendo' },
-      { name: 'Espaço confinado',                   norm: 'NR-33', progress: 100, done: 'Fev 2024', expires: 'Fev 2025', expiresColor: 'green', status: 'green', statusLabel: 'Válido'   },
-      { name: 'Primeiros socorros e emergências',   norm: 'NR-07', progress: 0,   done: '—',        expires: '—',        expiresColor: '',      status: 'gray',  statusLabel: 'Pendente' },
-    ],
-  },
-  {
-    id: 'w012',
-    name: 'Bruna Oliveira', initials: 'BO', matricula: '#00344',
-    role: 'Analista de Qualidade', sector: 'Qualidade',
-    manager: 'Lucas Andrade', admission: 'Abr 2019',
-    email: 'b.oliveira@metalurgica.com.br', phone: '(71) 99155-3344',
-    compliance: 100, status: 'green', statusLabel: 'Conforme',
-    trainings: [
-      { name: 'Ergonomia no trabalho',              norm: 'NR-17', progress: 100, done: 'Set 2024', expires: 'Set 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Primeiros socorros e emergências',   norm: 'NR-07', progress: 100, done: 'Out 2024', expires: 'Out 2025', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Equipamentos de proteção individual',norm: 'NR-06', progress: 100, done: 'Nov 2024', expires: 'Nov 2025', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Proteção contra incêndio',           norm: 'NR-23', progress: 100, done: 'Dez 2023', expires: 'Dez 2025', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-      { name: 'Máquinas e equipamentos',            norm: 'NR-12', progress: 100, done: 'Jan 2025', expires: 'Jan 2026', expiresColor: 'green', status: 'green', statusLabel: 'Válido' },
-    ],
-  },
-];
-
-/* Helpers de lookup */
-function getWorkerById(id) {
-  return Workers.find(w => w.id === id) || Workers[0];
-}
+const Workers = []; // Mantido vazio para compatibilidade se algum script antigo referenciar
 
 /* ---------------------------------------------------------------
-   OUTROS DADOS DO SISTEMA
+   OUTROS DADOS DO SISTEMA (Fallback vazio)
    --------------------------------------------------------------- */
 const Data = {
-  metrics: { compliance: 84, workers: 312, expiring: 38, nonCompliant: 24 },
-
-  alerts: [
-    { norm: 'NR-12', title: 'Operadores de prensa (Linha B)', count: 14, days: 12, level: 'urgent'  },
-    { norm: 'NR-35', title: 'Trabalho em altura (Manutenção)', count: 8, days: 19, level: 'urgent'  },
-    { norm: 'NR-10', title: 'Eletricistas (Infraestrutura)',  count: 16, days: 28, level: 'monitor' },
-  ],
-
-  recentActivity: [
-    { name: 'Carlos Mendes',  training: 'Segurança elétrica básica', norm: 'NR-10', date: '05 Jun 2025', status: 'green', statusLabel: 'Concluído'    },
-    { name: 'Fernanda Rocha', training: 'Trabalho em altura',        norm: 'NR-35', date: '04 Jun 2025', status: 'green', statusLabel: 'Concluído'    },
-    { name: 'Antônio Leal',   training: 'Máquinas e equipamentos',   norm: 'NR-12', date: '03 Jun 2025', status: 'amber', statusLabel: 'Em andamento' },
-    { name: 'Maria Santos',   training: 'Primeiros socorros',        norm: 'NR-07', date: '02 Jun 2025', status: 'red',   statusLabel: 'Vencido'      },
-    { name: 'Roberto Lima',   training: 'Segurança elétrica básica', norm: 'NR-10', date: '01 Jun 2025', status: 'green', statusLabel: 'Concluído'    },
-  ],
-
-  departments: [
-    { name: 'Infraestrutura', pct: 91  },
-    { name: 'Produção',       pct: 78  },
-    { name: 'Logística',      pct: 85  },
-    { name: 'Manutenção',     pct: 67  },
-    { name: 'Qualidade',      pct: 96  },
-    { name: 'Administrativo', pct: 100 },
-  ],
-
-  normCompliance: [
-    { norm: 'NR-10', pct: 88, valid: 44,  expired: 6  },
-    { norm: 'NR-12', pct: 72, valid: 86,  expired: 33 },
-    { norm: 'NR-35', pct: 83, valid: 58,  expired: 12 },
-    { norm: 'NR-07', pct: 95, valid: 209, expired: 11 },
-    { norm: 'NR-33', pct: 80, valid: 24,  expired: 6  },
-  ],
-
-  reportWorkers: Workers.map(w => ({
-    name: w.name, sector: w.sector, role: w.role,
-    valid:   w.trainings.filter(t => t.status === 'green').length,
-    expired: w.trainings.filter(t => t.status === 'red' || t.status === 'amber').length,
-    pct: w.compliance, status: w.status, statusLabel: w.statusLabel,
-  })),
-
-  summary: {
-    avgCompliance: 84,
-    conformes: 212,
-    emRisco: 76,
-    naoConformes: 24,
-    totalWorkers: 312
-  },
-
-  portalTrainings: {
-    pending: [
-      { name: 'Trabalho em altura',      norm: 'NR-35', progress: 60,  deadline: 'Prazo: 30 Jun 2025', deadlineColor: 'amber', status: 'blue', statusLabel: 'Em andamento', action: 'Continuar' },
-      { name: 'Primeiros socorros',      norm: 'NR-07', progress: 0,   deadline: 'Prazo: 15 Jul 2025', deadlineColor: '',      status: 'gray', statusLabel: 'Não iniciado', action: 'Iniciar'   },
-      { name: 'Máquinas e equipamentos', norm: 'NR-12', progress: 100, deadline: 'Venceu em Ago 2024', deadlineColor: 'red',   status: 'red',  statusLabel: 'Vencido',      action: 'Refazer'   },
-    ],
-    completed: [
-      { name: 'Segurança em instalações elétricas', norm: 'NR-10', done: '15 Jun 2024', validUntil: '15 Jun 2026', status: 'green', statusLabel: 'Válido' },
-    ],
-  },
+  metrics: { compliance: 0, workers: 0, expiring: 0, nonCompliant: 0 },
+  alerts: [],
+  recentActivity: [],
+  departments: [],
+  normCompliance: [],
+  reportWorkers: [],
+  summary: { avgCompliance: 0, conformes: 0, emRisco: 0, naoConformes: 0, totalWorkers: 0 },
+  portalTrainings: { pending: [], completed: [] },
 };
 
 /* ---------------------------------------------------------------
@@ -382,12 +205,55 @@ function progressBar(pct, forceRed = false) {
 }
 
 /* ---------------------------------------------------------------
+   PWA — Instalação
+   --------------------------------------------------------------- */
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Impede que o mini-infobar apareça no mobile
+  e.preventDefault();
+  // Guarda o evento para ser disparado depois
+  deferredPrompt = e;
+  // Mostra o botão de instalação se ele existir no DOM
+  const btn = document.getElementById('install-pwa-btn');
+  if (btn) btn.style.display = 'flex';
+  
+  const banner = document.getElementById('dashboard-install-banner');
+  if (banner) banner.style.display = 'flex';
+});
+
+async function installPWA() {
+  if (!deferredPrompt) return;
+  // Mostra o prompt de instalação
+  deferredPrompt.prompt();
+  // Aguarda a resposta do usuário
+  const { outcome } = await deferredPrompt.userChoice;
+  console.log(`Usuário escolheu instalação: ${outcome}`);
+  // Limpa o prompt
+  deferredPrompt = null;
+  // Esconde os botões
+  const btn = document.getElementById('install-pwa-btn');
+  if (btn) btn.style.display = 'none';
+  
+  const banner = document.getElementById('dashboard-install-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+/* ---------------------------------------------------------------
    SIDEBAR
    --------------------------------------------------------------- */
 function renderSidebar(activePage, workerMode = false) {
   const name     = State.currentName;
   const initials = State.currentInitials;
   const role     = State.currentRole;
+
+  // Botão de instalação (só aparece se o PWA for instalável)
+  const installBtn = `
+    <div id="install-pwa-btn" class="sidebar-install-box" style="display: ${deferredPrompt ? 'flex' : 'none'};" onclick="installPWA()">
+      <i class="ti ti-download"></i>
+      <span>Instalar Aplicativo</span>
+    </div>
+  `;
 
   if (workerMode) {
     return `
@@ -406,6 +272,7 @@ function renderSidebar(activePage, workerMode = false) {
         <a href="#" class="nav-item" onclick="showToast('Sem novas notificações.');return false;"><i class="ti ti-bell"></i>Notificações</a>
       </div>
       <div class="sidebar-footer">
+        ${installBtn}
         <div class="user-row">
           <div class="user-avatar">${initials}</div>
           <div>
@@ -455,6 +322,7 @@ function renderSidebar(activePage, workerMode = false) {
       <a href="/html/empresa.html" class="nav-item ${activePage==='empresa'?'active':''}"><i class="ti ti-building-factory-2"></i>Empresa</a>
     </div>` : ''}
     <div class="sidebar-footer">
+      ${installBtn}
       <div class="user-row">
         <div class="user-avatar">${initials}</div>
         <div>
@@ -468,11 +336,21 @@ function renderSidebar(activePage, workerMode = false) {
 }
 
 /* ---------------------------------------------------------------
-   MODALS + TOAST (injetados no body)
+   MODALS + TOAST + SIDEBAR HELPERS (injetados no body)
    --------------------------------------------------------------- */
 function openModal(id)  { const el = document.getElementById(id); if (el) el.classList.add('open'); }
 function closeModal(id) { const el = document.getElementById(id); if (el) el.classList.remove('open'); }
 function submitModal(id, msg) { closeModal(id); showToast(msg); }
+
+// Toggle do Menu Mobile
+function toggleMobileMenu() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.querySelector('.sidebar-overlay');
+  if (sidebar && overlay) {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('show');
+  }
+}
 
 let _toastTimer = null;
 function showToast(msg) {
@@ -486,6 +364,21 @@ function showToast(msg) {
 }
 
 function injectSharedHTML() {
+  // Adiciona overlay do sidebar para mobile
+  if (!document.querySelector('.sidebar-overlay')) {
+    document.body.insertAdjacentHTML('beforeend', '<div class="sidebar-overlay" onclick="toggleMobileMenu()"></div>');
+  }
+
+  // Injeta botão de menu mobile na topbar automaticamente
+  const topbarLeft = document.querySelector('.topbar-left');
+  if (topbarLeft && !document.querySelector('.menu-toggle')) {
+    topbarLeft.insertAdjacentHTML('afterbegin', `
+      <div class="menu-toggle" onclick="toggleMobileMenu()" style="display:none;">
+        <i class="ti ti-menu-2"></i>
+      </div>
+    `);
+  }
+
   document.body.insertAdjacentHTML('beforeend', `
     <div class="toast" id="toast">
       <i class="ti ti-check"></i>
@@ -660,6 +553,15 @@ async function populateAssignTrainingSelect() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   injectSharedHTML();
+  
+  // Registro do Service Worker (PWA)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(reg => console.log('✓ Service Worker registrado:', reg.scope))
+        .catch(err => console.warn('✗ Erro ao registrar Service Worker:', err));
+    });
+  }
   
   // Só popula o select de atribuição se o usuário estiver logado e não estiver na página de login
   // Isso evita erros 401 desnecessários no console
