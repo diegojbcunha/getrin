@@ -8,6 +8,11 @@
   "theme_color": "#0f172a",
   "icons": [
     {
+      "src": "icons/Getrin-Icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
       "src": "icons/Getrin-Icon-256x256.png",
       "sizes": "256x256",
       "type": "image/png"
@@ -20,7 +25,8 @@
     {
       "src": "icons/Getrin-Icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
   "orientation": "portrait"
