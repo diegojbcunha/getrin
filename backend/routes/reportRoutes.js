@@ -19,19 +19,19 @@ router.get('/', requireAuth, requireManager, async (req, res) => {
     const { data: workers, error: wErr } = await q;
     if (wErr) throw wErr;
 
-    const reportWorkers = workers.map(w => ({
+    const reportWorkers = (workers || []).map(w => ({
       name:        w.name,
       sector:      w.sector,
       role:        w.role,
       valid:       (w.worker_trainings || []).filter(wt => wt.status === 'green').length,
       expired:     (w.worker_trainings || []).filter(wt => wt.status === 'red' || wt.status === 'amber').length,
-      pct:         w.compliance,
+      pct:         w.compliance || 0,
       status:      w.status,
       statusLabel: w.status_label,
     }));
 
     const deptMap = {};
-    workers.forEach(w => {
+    (workers || []).forEach(w => {
       if (!deptMap[w.sector]) deptMap[w.sector] = { sum: 0, count: 0 };
       deptMap[w.sector].sum   += w.compliance;
       deptMap[w.sector].count += 1;
@@ -42,15 +42,14 @@ router.get('/', requireAuth, requireManager, async (req, res) => {
     }));
 
     let wtQ = supabase.from('worker_trainings')
-      .select('status, trainings!inner(norm, company_id)')
-      .or(`trainings.company_id.is.null,trainings.company_id.eq.${company_id}`);
-    
+      .select('status, trainings(norm, company_id)');
+
     if (norm) wtQ = wtQ.eq('trainings.norm', norm);
     const { data: wts, error: wtErr } = await wtQ;
     if (wtErr) throw wtErr;
 
     const normMap = {};
-    (wts || []).forEach(wt => {
+    ((wts || [])).forEach(wt => {
       if (!wt.trainings) return;
       const n = wt.trainings.norm;
       if (!normMap[n]) normMap[n] = { valid: 0, expired: 0 };
@@ -75,6 +74,7 @@ router.get('/', requireAuth, requireManager, async (req, res) => {
       summary: { totalWorkers: total, conformes, emRisco, naoConformes, avgCompliance: avgPct },
     });
   } catch (err) {
+    console.error('Erro no Reports API:', err);
     res.status(500).json({ error: err.message });
   }
 });
