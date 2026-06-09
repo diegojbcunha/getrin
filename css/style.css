@@ -519,3 +519,50 @@ td.td-mono    { font-family: var(--mono); font-size: 11px; }
   .metrics-row { grid-template-columns: repeat(2, 1fr); }
   .two-col     { grid-template-columns: 1fr; }
 }
+
+/* ── RESPONSIVE / MOBILE ADAPTATIONS ────────────────────────── */
+/* Mobile: collapse sidebar into an off-canvas panel and show menu toggle */
+@media (max-width: 900px) {
+  .menu-toggle { display: flex !important; align-items: center; gap: 8px; cursor: pointer; }
+
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    width: 260px; /* slide-out width */
+    z-index: 60;
+    box-shadow: 0 12px 30px rgba(2,6,23,0.45);
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  /* Keep the overlay functional and visible when showing the sidebar */
+  .sidebar-overlay { position: fixed; inset: 0; display: none; z-index: 50; background: rgba(2,6,23,0.45); }
+  .sidebar-overlay.show { display: block; }
+
+  /* Reduce padding and compact user row in mobile */
+  .sidebar-logo { padding: 16px 14px 12px; }
+  .sidebar-footer { padding: 12px 14px; }
+  .user-row { gap: 8px; }
+
+  /* Make install button full-width and touch-friendly */
+  .sidebar-install-box { display: inline-flex; justify-content: center; width: 100%; padding: 10px 14px; font-size: 14px; }
+
+  /* Ensure content area uses full width when sidebar hidden */
+  .content-area { padding: 18px 16px; }
+}
+
+/* Smaller phones: simplify UI, shrink FAB and tutor panel spacing */
+@media (max-width: 420px) {
+  :root { --topbar-h: 48px; }
+  .topbar { padding: 0 12px; }
+  .menu-toggle { margin-right: 6px; }
+
+  .sidebar { width: 240px; }
+  .sidebar .nav-item { padding: 10px 14px; font-size: 13px; }
+
+  /* Tutor FAB smaller on very small screens */
+  .tutor-fab { width: 46px; height: 46px; right: 12px; bottom: 12px; }
+  .tutor-fab .ti { font-size: 16px; }
+  .tutor-panel { right: 8px; left: 8px; bottom: 72px; max-width: none; }
+}
