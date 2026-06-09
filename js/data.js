@@ -322,7 +322,7 @@ function renderSidebar(activePage, workerMode = false) {
   <div class="sidebar">
     <div class="sidebar-logo">
       <div class="logo-wrap">
-        <div class="logo-text"><span class="logo-g">g</span><span class="logo-etrin">etrin</span></div>
+        <div class="logo-text"><span class="logo-g">g</span><span class="logo-etrin">etrin(beta)</span></div>
         <div class="logo-pip"></div>
       </div>
       <div class="logo-sub">Conformidade · NR · Capacitação</div>
