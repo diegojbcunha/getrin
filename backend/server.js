@@ -19,6 +19,7 @@ const dashboardRoutes      = require('./routes/dashboardRoutes');
 const reportRoutes         = require('./routes/reportRoutes');
 const alertRoutes          = require('./routes/alertRoutes');
 const settingsRoutes       = require('./routes/settingsRoutes');
+const companyRoutes        = require('./routes/companyRoutes');
 const tutorRoutes          = require('./routes/tutorRoutes');
 
 const app  = express();
@@ -48,6 +49,7 @@ app.use('/api/dashboard',        dashboardRoutes);
 app.use('/api/reports',          reportRoutes);
 app.use('/api/alerts',           alertRoutes);
 app.use('/api/settings',         settingsRoutes);
+app.use('/api/companies',        companyRoutes);
 app.use('/api/tutor',            tutorRoutes);
 
 // ── Inicialização do Servidor ──────────────────────────────────

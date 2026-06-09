@@ -64,14 +64,13 @@ self.addEventListener('activate', (event) => {
 // Estratégia de Fetch: Network First, falling back to cache
 self.addEventListener('fetch', (event) => {
   // Ignora chamadas para a API (serão tratadas pelo IndexedDB no data.js)
-  if (event.request.url.includes('/api/')) {
+  if (event.request.url.includes('/api/') || event.request.method !== 'GET') {
     return;
   }
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Se a rede estiver disponível, atualiza o cache
         const responseClone = response.clone();
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, responseClone);
@@ -79,8 +78,11 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        // Se a rede falhar, tenta o cache
-        return caches.match(event.request);
+        return caches.match(event.request)
+          .then((cachedResponse) => cachedResponse || new Response('', {
+            status: 404,
+            statusText: 'Not Found'
+          }));
       })
   );
 });

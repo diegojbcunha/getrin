@@ -353,7 +353,20 @@ function renderSidebar(activePage, workerMode = false) {
 /* ---------------------------------------------------------------
    MODALS + TOAST + SIDEBAR HELPERS (injetados no body)
    --------------------------------------------------------------- */
-function openModal(id)  { const el = document.getElementById(id); if (el) el.classList.add('open'); }
+function openModal(id)  {
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.add('open');
+    // Se é o modal de treinamento e não está em modo edição, mostra o campo de empresa
+    if (id === 'modal-training' && !el.dataset.trainingId) {
+      const companyField = el.querySelector('#training-company')?.closest('.form-field');
+      if (companyField) companyField.style.display = 'block';
+    }
+    if (id === 'modal-training') {
+      populateCompanySelect();
+    }
+  }
+}
 function closeModal(id) { const el = document.getElementById(id); if (el) el.classList.remove('open'); }
 function submitModal(id, msg) { closeModal(id); showToast(msg); }
 
@@ -379,6 +392,11 @@ function showToast(msg) {
 }
 
 function injectSharedHTML() {
+  // Não injeta se já foi injetado
+  if (document.getElementById('modal-training')) {
+    return;
+  }
+
   // Adiciona overlay do sidebar para mobile
   if (!document.querySelector('.sidebar-overlay')) {
     document.body.insertAdjacentHTML('beforeend', '<div class="sidebar-overlay" onclick="toggleMobileMenu()"></div>');
@@ -403,8 +421,8 @@ function injectSharedHTML() {
     <div class="modal-overlay" id="modal-training">
       <div class="modal-box">
         <div class="modal-header">
-          <span class="modal-title">Novo treinamento</span>
-          <i class="ti ti-x modal-close" onclick="closeModal('modal-training')"></i>
+          <span class="modal-title" id="modal-training-title">Novo treinamento</span>
+          <i class="ti ti-x modal-close" onclick="closeModal('modal-training'); resetTrainingModal();"></i>
         </div>
         <div class="modal-body">
           <div class="form-field">
@@ -413,36 +431,44 @@ function injectSharedHTML() {
           </div>
           <div class="form-grid-2">
             <div class="form-field">
-              <label class="form-label">Norma regulamentadora</label>
-              <select class="form-select" id="training-norm"><option>NR-10</option><option>NR-12</option><option>NR-35</option><option>NR-07</option><option>NR-23</option><option>NR-33</option></select>
+              <label class="form-label">Empresa</label>
+              <select class="form-select" id="training-company">
+                <option value="">Carregando empresas...</option>
+              </select>
             </div>
             <div class="form-field">
-              <label class="form-label">Carga horária</label>
-              <input class="form-input" id="training-hours" placeholder="Ex: 40h" />
+              <label class="form-label">Norma regulamentadora</label>
+              <select class="form-select" id="training-norm"><option>NR-10</option><option>NR-12</option><option>NR-35</option><option>NR-07</option><option>NR-23</option><option>NR-33</option></select>
             </div>
           </div>
           <div class="form-grid-2">
             <div class="form-field">
+              <label class="form-label">Carga horária</label>
+              <input class="form-input" id="training-hours" placeholder="Ex: 40h" />
+            </div>
+            <div class="form-field">
               <label class="form-label">Validade</label>
               <select class="form-select" id="training-validity"><option>6 meses</option><option>1 ano</option><option>2 anos</option></select>
             </div>
+          </div>
+          <div class="form-grid-2">
             <div class="form-field">
               <label class="form-label">Modalidade</label>
               <select class="form-select" id="training-mode"><option>Presencial</option><option>EAD</option><option>Híbrido</option></select>
             </div>
+            <div class="form-field">
+              <label class="form-label">Funções designadas</label>
+              <input class="form-input" id="training-roles" placeholder="Ex: Eletricista, Manutenção" />
+            </div>
           </div>
           <div class="form-field">
-            <label class="form-label">Funções designadas</label>
-            <input class="form-input" id="training-roles" placeholder="Ex: Eletricista, Manutenção" />
-          </div>
-          <div class="form-field">
-            <label class="form-label">E-mail do funcionário</label>
+            <label class="form-label">E-mail do funcionário (opcional)</label>
             <input class="form-input" id="training-worker-email" type="email" placeholder="funcionario@empresa.com" />
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn" onclick="closeModal('modal-training')">Cancelar</button>
-          <button class="btn btn-primary" onclick="submitTrainingModal()">Criar treinamento</button>
+          <button class="btn" onclick="closeModal('modal-training'); resetTrainingModal();">Cancelar</button>
+          <button class="btn btn-primary" id="btn-submit-training" onclick="submitTrainingModal()">Criar treinamento</button>
         </div>
       </div>
     </div>
@@ -481,6 +507,11 @@ function injectSharedHTML() {
 }
 
 async function submitTrainingModal() {
+  // Proteção contra submissões duplicadas
+  const btn = document.getElementById('btn-submit-training');
+  if (btn && btn.dataset.submitting === 'true') return;
+  if (btn) btn.dataset.submitting = 'true';
+
   const name = document.getElementById('training-name')?.value.trim() || '';
   const norm = document.getElementById('training-norm')?.value || '';
   const hours = document.getElementById('training-hours')?.value.trim() || '';
@@ -488,28 +519,70 @@ async function submitTrainingModal() {
   const mode = document.getElementById('training-mode')?.value || '';
   const roles = document.getElementById('training-roles')?.value.trim() || '';
   const worker_email = document.getElementById('training-worker-email')?.value.trim() || '';
+  const company_id = document.getElementById('training-company')?.value || '';
+  const trainingId = document.getElementById('modal-training')?.dataset.trainingId || null;
 
   if (!name || !norm || !hours || !validity || !mode) {
     showToast('Preencha os campos obrigatórios do treinamento.');
+    if (btn) btn.dataset.submitting = 'false';
     return;
   }
 
   try {
-    const res = await fetch(`${API_BASE}/trainings`, {
-      method: 'POST',
+    const method = trainingId ? 'PUT' : 'POST';
+    const url = trainingId ? `${API_BASE}/trainings/${trainingId}` : `${API_BASE}/trainings`;
+    const body = { name, norm, hours, validity, roles, mode, worker_email };
+    if (!trainingId && company_id) body.company_id = company_id;
+
+    const res = await fetch(url, {
+      method,
       headers: getAuthHeaders(),
-      body: JSON.stringify({ name, norm, hours, validity, roles, mode, worker_email })
+      body: JSON.stringify(body)
     });
 
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.error || 'Erro ao criar treinamento.');
+      throw new Error(data.error || `Erro ao ${trainingId ? 'editar' : 'criar'} treinamento.`);
     }
 
+    resetTrainingModal();
     closeModal('modal-training');
-    showToast(worker_email ? 'Treinamento criado e atribuído com sucesso.' : 'Treinamento criado com sucesso.');
+    showToast(trainingId 
+      ? 'Treinamento atualizado com sucesso.' 
+      : (worker_email ? 'Treinamento criado e atribuído com sucesso.' : 'Treinamento criado com sucesso.'));
+    
+    // Recarrega os dados de treinamentos se a página tiver a função renderTrainings
+    if (typeof reloadTrainings === 'function') {
+      await reloadTrainings();
+    }
   } catch (error) {
-    showToast(error.message || 'Erro ao criar treinamento.');
+    showToast(error.message || `Erro ao ${trainingId ? 'editar' : 'criar'} treinamento.`);
+  } finally {
+    if (btn) btn.dataset.submitting = 'false';
+  }
+}
+
+/* Reseta o formulário de treinamento e limpa dados de edição */
+function resetTrainingModal() {
+  const modal = document.getElementById('modal-training');
+  if (modal) {
+    modal.dataset.trainingId = '';
+    document.getElementById('modal-training-title').textContent = 'Novo treinamento';
+  }
+  document.getElementById('btn-submit-training').textContent = 'Criar treinamento';
+  document.getElementById('training-name').value = '';
+  document.getElementById('training-hours').value = '';
+  document.getElementById('training-roles').value = '';
+  document.getElementById('training-worker-email').value = '';
+  document.getElementById('training-company').selectedIndex = 0;
+  document.getElementById('training-norm').selectedIndex = 0;
+  document.getElementById('training-validity').selectedIndex = 0;
+  document.getElementById('training-mode').selectedIndex = 0;
+  
+  // Mostra o campo de empresa novamente
+  const companyField = document.getElementById('training-company')?.closest('.form-field');
+  if (companyField) {
+    companyField.style.display = 'block';
   }
 }
 
@@ -565,6 +638,27 @@ async function populateAssignTrainingSelect() {
   }
 }
 
+/* Popula o select de empresas no modal de treinamento */
+async function populateCompanySelect() {
+  const select = document.getElementById('training-company');
+  if (!select) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/companies`, { headers: getAuthHeaders() });
+    if (!res.ok) {
+      select.innerHTML = '<option value="">Erro ao carregar empresas</option>';
+      return;
+    }
+
+    const companies = await res.json();
+    const options = companies.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    select.innerHTML = `<option value="">Selecione uma empresa...</option>${options}`;
+  } catch (err) {
+    console.warn('Erro ao carregar empresas:', err);
+    select.innerHTML = '<option value="">Erro ao carregar empresas</option>';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   injectSharedHTML();
   
@@ -582,6 +676,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isLoginPage = window.location.pathname.includes('login.html');
   if (State.token && !isLoginPage) {
     await populateAssignTrainingSelect();
+    await populateCompanySelect();
   }
   
   // Inicializa o Tutor de Segurança IA em todas as páginas internas

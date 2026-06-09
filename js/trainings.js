@@ -8,6 +8,12 @@ let trainingsData = [];
 document.addEventListener('DOMContentLoaded', async () => {
   if (!authGuard()) return;
   document.getElementById('sidebar-mount').innerHTML = renderSidebar('trainings');
+  injectSharedHTML();
+  await reloadTrainings();
+});
+
+/* Recarrega os treinamentos da API */
+async function reloadTrainings() {
   try {
     trainingsData = await fetchWithFallback('/trainings', {}, Trainings);
     renderTrainings(trainingsData);
@@ -15,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error(err);
     showToast("Erro ao carregar treinamentos.");
   }
-});
+}
 
 /* Renderiza / atualiza a tabela */
 function renderTrainings(list) {
@@ -34,11 +40,37 @@ function renderTrainings(list) {
       <td>${badge('blue', t.mode)}</td>
       <td>${badge(t.status, t.status_label || t.statusLabel || 'Ativo')}</td>
       <td style="text-align:center;">
-        <button class="btn btn-icon btn-sm" onclick="showToast('Treinamento aberto.')">
+        <button class="btn btn-icon btn-sm" onclick="openEditTrainingModal('${t.id}', '${t.name.replace(/'/g, "\\'")}', '${t.norm}', '${t.hours}', '${t.validity}', '${t.mode}', '${(t.roles || '').replace(/'/g, "\\'")}')">
           <i class="ti ti-edit"></i>
         </button>
       </td>
     </tr>`).join('');
+}
+
+/* Abre o modal para editar um treinamento */
+function openEditTrainingModal(id, name, norm, hours, validity, mode, roles) {
+  const modal = document.getElementById('modal-training');
+  const title = document.getElementById('modal-training-title');
+  
+  title.textContent = 'Editar treinamento';
+  modal.dataset.trainingId = id;
+  document.getElementById('btn-submit-training').textContent = 'Salvar alterações';
+  
+  document.getElementById('training-name').value = name;
+  document.getElementById('training-norm').value = norm;
+  document.getElementById('training-hours').value = hours;
+  document.getElementById('training-validity').value = validity;
+  document.getElementById('training-mode').value = mode;
+  document.getElementById('training-roles').value = roles;
+  document.getElementById('training-worker-email').value = '';
+  
+  // Esconde o campo de empresa quando editando
+  const companyField = document.getElementById('training-company')?.closest('.form-field');
+  if (companyField) {
+    companyField.style.display = 'none';
+  }
+  
+  openModal('modal-training');
 }
 
 /* Filtro de busca em tempo real */
