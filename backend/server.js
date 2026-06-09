@@ -13,13 +13,13 @@ require('dotenv').config();
 // Rotas
 const authRoutes      = require('./routes/authRoutes');
 const workerRoutes    = require('./routes/workerRoutes');
-const trainingRoutes  = require('./routes/trainingRoutes');
-const workerTrainingRoutes = require('./routes/trainingRoutes'); // Alias para clareza, se necessário
-const dashboardRoutes = require('./routes/dashboardRoutes');
-const reportRoutes    = require('./routes/reportRoutes');
-const alertRoutes     = require('./routes/alertRoutes');
-const settingsRoutes  = require('./routes/settingsRoutes');
-const tutorRoutes     = require('./routes/tutorRoutes');
+const trainingRoutes       = require('./routes/trainingRoutes');
+const workerTrainingRoutes = require('./routes/workerTrainingRoutes');
+const dashboardRoutes      = require('./routes/dashboardRoutes');
+const reportRoutes         = require('./routes/reportRoutes');
+const alertRoutes          = require('./routes/alertRoutes');
+const settingsRoutes       = require('./routes/settingsRoutes');
+const tutorRoutes          = require('./routes/tutorRoutes');
 
 const app  = express();
 const PORT = process.env.PORT || 3003;
@@ -42,7 +42,7 @@ app.get('/login', (_req, res) => res.redirect('/html/login.html'));
 // ── Rotas da API ───────────────────────────────────────────────
 app.use('/api/auth',             authRoutes);
 app.use('/api/workers',          workerRoutes);
-app.use('/api/worker-trainings', trainingRoutes); // IMPORTANTE: Mover para cima para evitar conflito
+app.use('/api/worker-trainings', workerTrainingRoutes);
 app.use('/api/trainings',        trainingRoutes);
 app.use('/api/dashboard',        dashboardRoutes);
 app.use('/api/reports',          reportRoutes);

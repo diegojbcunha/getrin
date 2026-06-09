@@ -184,19 +184,4 @@ router.put('/:id', requireAuth, requireManager, async (req, res) => {
   }
 });
 
-router.delete('/:id', requireAuth, async (req, res) => {
-  if (req.session.role !== 'admin')
-    return res.status(403).json({ error: 'Somente administradores podem remover atribuições.' });
-  try {
-    const { data: wt } = await supabase.from('worker_trainings')
-      .select('worker_id').eq('id', req.params.id).maybeSingle();
-    const { error } = await supabase.from('worker_trainings').delete().eq('id', req.params.id);
-    if (error) throw error;
-    if (wt?.worker_id) await recalculateCompliance(wt.worker_id);
-    res.json({ message: 'Atribuição removida com sucesso.' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 module.exports = router;
