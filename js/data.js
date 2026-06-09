@@ -264,7 +264,7 @@ function renderSidebar(activePage, workerMode = false) {
 
   // Botão de instalação (só aparece se o PWA for instalável)
   const installBtn = `
-    <div id="install-pwa-btn" class="sidebar-install-box" style="background: #fff; color: var(--accent); border-radius: 25px; font-weight: 600; padding: 8px 16px;" onclick="installPWA()">
+    <div id="install-pwa-btn" class="sidebar-install-box" onclick="installPWA()" role="button" aria-label="Instalar aplicativo">
       <i class="ti ti-download"></i>
       <span>Instalar Aplicativo</span>
     </div>
@@ -677,8 +677,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     await populateCompanySelect();
   }
   
-  // Inicializa o Tutor de Segurança IA em todas as páginas internas
-  if (typeof initTutor === 'function') initTutor();
+  // Inicializa o Tutor de Segurança IA em todas as páginas internas (exceto login)
+  if (!isLoginPage) {
+    if (typeof initTutor === 'function') {
+      initTutor();
+    } else if (!document.getElementById('tutor-script')) {
+      // Carrega o script do tutor dinamicamente se não estiver presente
+      const s = document.createElement('script');
+      s.id = 'tutor-script';
+      s.src = '/js/tutor.js';
+      s.defer = true;
+      s.onload = () => { if (typeof initTutor === 'function') initTutor(); };
+      s.onerror = () => console.warn('Não foi possível carregar /js/tutor.js');
+      document.head.appendChild(s);
+    }
+  }
 });
 /* ---------------------------------------------------------------
    TUTOR DE SEGURANÇA IA

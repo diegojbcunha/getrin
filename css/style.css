@@ -181,6 +181,34 @@ body {
 }
 .sidebar-footer .ti-logout:hover { color: #60A5FA; }
 
+/* ── SIDEBAR INSTALL PWA BUTTON ───────────────────────────────── */
+.sidebar-install-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid rgba(37,99,235,0.10);
+  box-shadow: 0 6px 18px rgba(16,24,40,0.06);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+  white-space: nowrap;
+}
+.sidebar-install-box .ti { font-size: 16px; color: var(--accent); }
+.sidebar-install-box:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(16,24,40,0.10);
+}
+.sidebar-install-box:active { transform: translateY(-1px); }
+
+/* Começa escondido — mostrado quando o evento beforeinstallprompt é disparado */
+#install-pwa-btn { display: none; }
+
 /* ── TOPBAR ─────────────────────────────────────────────────── */
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
