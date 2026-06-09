@@ -264,7 +264,7 @@ function renderSidebar(activePage, workerMode = false) {
 
   // Botão de instalação (só aparece se o PWA for instalável)
   const installBtn = `
-    <div id="install-pwa-btn" class="sidebar-install-box" style="display: ${deferredPrompt ? 'flex' : 'none'};" onclick="installPWA()">
+    <div id="install-pwa-btn" class="sidebar-install-box" style="background: #fff; color: var(--accent); border-radius: 25px; font-weight: 600; padding: 8px 16px;" onclick="installPWA()">
       <i class="ti ti-download"></i>
       <span>Instalar Aplicativo</span>
     </div>
@@ -333,8 +333,6 @@ function renderSidebar(activePage, workerMode = false) {
     </div>
     ${State.loginRole === 'admin' ? `
     <div class="sidebar-section">
-      <div class="sidebar-section-label">Config.</div>
-      <a href="/html/empresa.html" class="nav-item ${activePage==='empresa'?'active':''}"><i class="ti ti-building-factory-2"></i>Empresa</a>
     </div>` : ''}
     <div class="sidebar-footer">
       ${installBtn}

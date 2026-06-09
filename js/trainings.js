@@ -40,9 +40,7 @@ function renderTrainings(list) {
       <td>${badge('blue', t.mode)}</td>
       <td>${badge(t.status, t.status_label || t.statusLabel || 'Ativo')}</td>
       <td style="text-align:center;">
-        <button class="btn btn-icon btn-sm" onclick="openEditTrainingModal('${t.id}', '${t.name.replace(/'/g, "\\'")}', '${t.norm}', '${t.hours}', '${t.validity}', '${t.mode}', '${(t.roles || '').replace(/'/g, "\\'")}')">
-          <i class="ti ti-edit"></i>
-        </button>
+      
       </td>
     </tr>`).join('');
 }

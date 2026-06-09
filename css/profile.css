@@ -1,50 +1,23 @@
-/* =============================================================
-   GETRIN — Perfil do Trabalhador
-   css/profile.css
-   ============================================================= */
+/* GETRIN — Perfil v2  |  css/profile.css */
 
 .profile-header-inner {
   display: flex; align-items: flex-start; justify-content: space-between;
-  padding: 16px 14px; border-bottom: 0.5px solid var(--border);
+  padding: 20px 18px; border-bottom: 1px solid var(--border);
 }
-
-.profile-meta  { display: flex; align-items: flex-start; gap: 14px; }
-
+.profile-meta { display: flex; align-items: flex-start; gap: 16px; }
 .profile-initials {
-  width: 42px; height: 42px; border-radius: var(--radius);
-  background: var(--gray-50); border: 0.5px solid var(--border);
+  width: 46px; height: 46px; border-radius: var(--radius);
+  background: var(--blue-50); border: 1.5px solid var(--blue-200);
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--mono); font-size: 13px; color: var(--text-2);
-  flex-shrink: 0;
+  font-family: var(--mono); font-size: 14px; font-weight: 700;
+  color: var(--blue-600); flex-shrink: 0;
 }
-
-.profile-name { font-size: 15px; font-weight: 500; margin-bottom: 2px; }
-.profile-sub  { font-size: 11.5px; color: var(--text-3); margin-bottom: 8px; }
-
+.profile-name { font-size: 16px; font-weight: 700; margin-bottom: 2px; color: var(--text); }
+.profile-sub  { font-size: 12px; color: var(--text-3); margin-bottom: 10px; }
 .profile-fields { display: flex; gap: 20px; flex-wrap: wrap; }
-.pf     { display: flex; flex-direction: column; gap: 1px; }
-.pf-lbl { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-3); }
-.pf-val { font-size: 12px; color: var(--text-2); }
-
+.pf { display: flex; flex-direction: column; gap: 2px; }
+.pf-lbl { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-3); font-weight: 600; }
+.pf-val { font-size: 12px; color: var(--text-2); font-weight: 500; }
 .profile-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .profile-pct   { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
-
-.profile-table-section { padding: 14px 14px 6px; }
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 600px) {
-  .profile-header-inner {
-    flex-direction: column;
-    gap: 16px;
-  }
-  .profile-right {
-    align-items: flex-start;
-    width: 100%;
-    padding-top: 12px;
-    border-top: 0.5px solid var(--border);
-  }
-  .profile-meta {
-    flex-direction: column;
-    gap: 12px;
-  }
-}
+.profile-table-section { padding: 16px 16px 8px; }

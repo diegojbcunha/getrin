@@ -1,76 +1,101 @@
 /* =============================================================
-   GETRIN — Login
-   css/login.css
+   GETRIN — Login  v2  |  css/login.css
    ============================================================= */
 
 .login-wrap {
   display: flex; align-items: center; justify-content: center;
-  min-height: 100vh; background: var(--bg);
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0F2057 0%, #1E3A8A 50%, #1D4ED8 100%);
+  position: relative; overflow: hidden;
+}
+
+/* Círculos decorativos de fundo */
+.login-wrap::before {
+  content: '';
+  position: absolute;
+  width: 500px; height: 500px;
+  border-radius: 50%;
+  background: rgba(96,165,250,0.06);
+  top: -150px; right: -100px;
+  pointer-events: none;
+}
+.login-wrap::after {
+  content: '';
+  position: absolute;
+  width: 350px; height: 350px;
+  border-radius: 50%;
+  background: rgba(96,165,250,0.05);
+  bottom: -100px; left: -80px;
+  pointer-events: none;
 }
 
 .login-card {
-  width: 340px; background: var(--surface);
-  border: 0.5px solid var(--border-md); border-radius: var(--radius);
-  padding: 34px 30px; box-shadow: var(--shadow);
+  width: 360px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 36px 32px 32px;
+  box-shadow: 0 24px 64px rgba(13,21,38,0.30), 0 0 0 1px rgba(255,255,255,0.15);
+  position: relative; z-index: 1;
 }
 
 .login-logo-name {
-  font-size: 20px; font-weight: 500; letter-spacing: -0.03em;
-  display: flex; align-items: center; gap: 6px;
+  font-size: 22px; font-weight: 700;
+  letter-spacing: -0.03em;
+  display: flex; align-items: center; gap: 4px;
+  color: #0D1526;
 }
-.login-logo-name span { color: var(--text-3); font-weight: 400; }
+.login-logo-name span { color: #8096BF; font-weight: 400; }
 
 .login-logo-sub {
-  font-family: var(--mono); font-size: 9.5px; color: var(--text-3);
-  letter-spacing: 0.07em; text-transform: uppercase; margin-top: 3px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; color: #8096BF;
+  letter-spacing: 0.09em; text-transform: uppercase; margin-top: 4px;
 }
 
-.login-divider { border: none; border-top: 0.5px solid var(--border); margin: 20px 0; }
+.login-divider {
+  border: none; border-top: 1px solid #EFF6FF; margin: 22px 0;
+}
 
 .role-selector {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 18px;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 8px; margin-bottom: 20px;
 }
 .role-option {
-  padding: 10px 6px; text-align: center; border: 0.5px solid var(--border-md);
-  border-radius: var(--radius); font-size: 11px; cursor: pointer;
-  color: var(--text-2); transition: all 0.15s; background: var(--surface);
+  padding: 11px 6px; text-align: center;
+  border: 1.5px solid #BFDBFE;
+  border-radius: 10px; font-size: 11px; cursor: pointer;
+  color: #3A4D72; transition: all 0.15s;
+  background: #F8FAFF; font-weight: 500;
 }
-.role-option:hover { border-color: var(--blue-200); background: var(--blue-50); }
+.role-option:hover {
+  border-color: #2563EB; background: #EFF6FF; color: #2563EB;
+}
 .role-option.selected {
-  border-color: var(--accent); color: var(--accent); background: var(--blue-50);
+  border-color: #2563EB; color: #fff;
+  background: #2563EB; font-weight: 600;
 }
-.role-option .ti { font-size: 18px; display: block; margin-bottom: 4px; }
+.role-option .ti { font-size: 18px; display: block; margin-bottom: 5px; }
 
 .login-btn {
-  width: 100%; padding: 10px; background: var(--accent); color: #fff;
-  border: none; border-radius: var(--radius); font-size: 13px; font-family: var(--ff);
-  cursor: pointer; font-weight: 500; letter-spacing: 0.01em; transition: background 0.15s;
+  width: 100%; padding: 11px;
+  background: #2563EB; color: #fff;
+  border: none; border-radius: 8px;
+  font-size: 13px; font-family: 'IBM Plex Sans', sans-serif;
+  cursor: pointer; font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: all 0.15s;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.35);
 }
-.login-btn:hover { background: var(--blue-800); }
-
-.login-company { display: flex; align-items: center; gap: 7px; margin-top: 18px; }
-.login-company .ti  { font-size: 13px; color: var(--text-3); }
-.login-company span { font-size: 11px; color: var(--text-3); }
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 400px) {
-  .login-card {
-    width: 100%;
-    margin: 20px;
-    padding: 24px 20px;
-  }
-  .role-selector {
-    grid-template-columns: 1fr;
-  }
-  .role-option {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
-    text-align: left;
-  }
-  .role-option .ti {
-    margin-bottom: 0;
-    font-size: 16px;
-  }
+.login-btn:hover {
+  background: #1D4ED8;
+  box-shadow: 0 4px 14px rgba(37,99,235,0.45);
+  transform: translateY(-1px);
 }
+.login-btn:active { transform: translateY(0); }
+
+.login-company {
+  display: flex; align-items: center; gap: 7px; margin-top: 20px;
+  justify-content: center;
+}
+.login-company .ti  { font-size: 13px; color: #8096BF; }
+.login-company span { font-size: 11px; color: #8096BF; }
