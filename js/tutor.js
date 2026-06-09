@@ -203,9 +203,7 @@ async function tutorCallGemini(userText) {
     ]
   };
 
-  const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-    ? `http://${location.hostname}:3003/api`
-    : '/api';
+  const API_BASE = `${location.origin}/api`;
 
   const res = await fetch(`${API_BASE}/tutor/chat`, {
     method:  'POST',

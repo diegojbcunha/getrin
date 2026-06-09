@@ -10,7 +10,7 @@ const { calcExpiryDate, calcExpiryColor, parseExpiryDate } = require('../utils/h
 
 router.post('/assign', requireAuth, requireManager, async (req, res) => {
   try {
-    const { worker_id, worker_email, training_id, progress, done, expires, status, status_label } = req.body;
+    const { worker_id, worker_email, training_id, progress, done_at, expires, status, status_label } = req.body;
     if (!worker_id && !worker_email)
       return res.status(400).json({ error: 'worker_id ou worker_email é obrigatório.' });
     if (!training_id)
@@ -22,16 +22,21 @@ router.post('/assign', requireAuth, requireManager, async (req, res) => {
       resolvedEmail = data?.email || '';
     }
 
-    let finalExpires = expires || '—';
-    let doneAt = null;
+    let finalDoneAt = done_at ? done_at : null;
+    let finalExpires = expires ? expires : null;
 
-    if (done && done !== '—') {
-      const parsedDate = parseExpiryDate(done);
-      if (parsedDate) doneAt = parsedDate.toISOString().split('T')[0];
-
-      const { data: tr } = await supabase.from('trainings').select('validity').eq('id', training_id).maybeSingle();
-      if (tr?.validity) {
-        finalExpires = calcExpiryDate(done, tr.validity);
+    // Se done_at foi fornecido, calcular expires baseado na validade do treinamento
+    if (finalDoneAt) {
+      const { data: tr } = await supabase.from('trainings')
+        .select('validity_months')
+        .eq('id', training_id)
+        .maybeSingle();
+      
+      if (tr?.validity_months) {
+        const doneDate = new Date(finalDoneAt);
+        const expiryDate = new Date(doneDate);
+        expiryDate.setMonth(expiryDate.getMonth() + tr.validity_months);
+        finalExpires = expiryDate.toISOString().split('T')[0];
       }
     }
 
@@ -42,8 +47,7 @@ router.post('/assign', requireAuth, requireManager, async (req, res) => {
           worker_id: resolvedWorkerId,
           training_id,
           progress: progress ?? 0,
-          done: done || '—',
-          done_at: doneAt,
+          done_at: finalDoneAt,
           expires: finalExpires,
           status: status || 'gray',
           status_label: status_label || 'Pendente'
@@ -53,7 +57,7 @@ router.post('/assign', requireAuth, requireManager, async (req, res) => {
       if (error) throw error;
       await recalculateCompliance(resolvedWorkerId);
       return res.status(201).json(data);
-    } catch (_) {
+    } catch (err) {
       const localWorker = await ensureWorkerRecord(resolvedEmail || `worker-${worker_id}`);
       const db = loadLocalDb();
       const t = db.trainings.find(tr => tr.id === training_id) || { id: training_id, name: 'Treinamento', norm: '—' };
@@ -65,7 +69,7 @@ router.post('/assign', requireAuth, requireManager, async (req, res) => {
         training_name: t.name,
         training_norm: t.norm,
         progress: progress ?? 0,
-        done: done || '—',
+        done_at: finalDoneAt,
         expires: finalExpires,
         status: status || 'gray',
         status_label: status_label || 'Pendente',
@@ -81,22 +85,26 @@ router.post('/assign', requireAuth, requireManager, async (req, res) => {
 
 router.put('/:id', requireAuth, requireManager, async (req, res) => {
   try {
-    const { progress, done, training_id, status, status_label } = req.body;
+    const { progress, done_at, training_id, status, status_label } = req.body;
     let expires = req.body.expires;
-    let done_at = null;
 
-    if (done && done !== '—' && training_id) {
-      const parsedDate = parseExpiryDate(done);
-      if (parsedDate) done_at = parsedDate.toISOString().split('T')[0];
-
-      const { data: tr } = await supabase.from('trainings').select('validity').eq('id', training_id).maybeSingle();
-      if (tr?.validity) {
-        expires = calcExpiryDate(done, tr.validity);
+    // Se done_at foi fornecido, calcular expires baseado na validade do treinamento
+    if (done_at && training_id) {
+      const { data: tr } = await supabase.from('trainings')
+        .select('validity_months')
+        .eq('id', training_id)
+        .maybeSingle();
+      
+      if (tr?.validity_months) {
+        const doneDate = new Date(done_at);
+        const expiryDate = new Date(doneDate);
+        expiryDate.setMonth(expiryDate.getMonth() + tr.validity_months);
+        expires = expiryDate.toISOString().split('T')[0];
       }
     }
 
     const { data, error } = await supabase.from('worker_trainings')
-      .update({ progress, done, done_at, expires, status, status_label })
+      .update({ progress, done_at, expires, status, status_label })
       .eq('id', req.params.id)
       .select()
       .single();

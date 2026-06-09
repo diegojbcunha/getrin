@@ -7,9 +7,7 @@
 /* ---------------------------------------------------------------
    API E FALLBACK
    --------------------------------------------------------------- */
-const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-  ? `http://${location.hostname}:3003/api`
-  : '/api';
+const API_BASE = `${location.origin}/api`;
 
 /* ---------------------------------------------------------------
    INDEXEDDB — Armazenamento Offline
@@ -127,6 +125,23 @@ function getAuthHeaders() {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${State.token}`
   };
+}
+
+/**
+ * Formata uma data (YYYY-MM-DD ou Date object) para formato amigável (DD/MM/YYYY ou DD Mon YYYY).
+ */
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    const date = typeof dateStr === 'string' ? new Date(dateStr + 'T00:00:00') : dateStr;
+    if (isNaN(date.getTime())) return '—';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch (_) {
+    return '—';
+  }
 }
 
 /**
@@ -502,7 +517,6 @@ async function submitAssignModal() {
   const trainingId = document.getElementById('assign-training-id')?.value || '';
   const worker_email = document.getElementById('assign-worker-email')?.value.trim() || '';
   const deadline = document.getElementById('assign-deadline')?.value || '';
-  const notes = document.getElementById('assign-notes')?.value.trim() || '';
 
   if (!trainingId || !worker_email) {
     showToast('Informe o treinamento e o e-mail do funcionário.');
@@ -510,14 +524,14 @@ async function submitAssignModal() {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/worker-trainings`, {
+    const res = await fetch(`${API_BASE}/worker-trainings/assign`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
         worker_email,
         training_id: trainingId,
-        expires: deadline || '—',
-        done: notes || '—',
+        done_at: deadline || null,
+        expires: deadline ? new Date(deadline) : null,
         status: 'gray',
         status_label: 'Pendente'
       })

@@ -176,8 +176,8 @@ function renderPortalCompleted(list) {
     <tr>
       <td class="td-primary">${t.name}</td>
       <td>${nrTag(t.norm)}</td>
-      <td class="td-mono">${t.done}</td>
-      <td class="td-mono c-green">${t.expires}</td>
+      <td class="td-mono">${t.done_at ? formatDate(t.done_at) : '—'}</td>
+      <td class="td-mono c-green">${t.expires ? formatDate(t.expires) : '—'}</td>
       <td>${badge(t.status, t.status_label || t.statusLabel)}</td>
       <td>
         <button class="btn btn-sm" onclick="showToast('Certificado baixado.')">

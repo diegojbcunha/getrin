@@ -21,10 +21,13 @@ async function loadAlerts() {
   try {
     const raw = await fetchWithFallback('/alerts', {}, getMockAlerts());
 
-    // Normaliza: garante que cada alerta tem um campo 'level' calculado por 'days'
+    // Os alertas já vêm com 'level' e 'days' do backend
     alertsData = raw.map(a => ({
       ...a,
-      level: computeLevel(a.days)
+      // Garante que 'days' existe (fallback para 'days_until_expiry' se necessário)
+      days: a.days || a.days_until_expiry || 0,
+      // Recalcula o level para garantir consistência (em caso de dados antigos)
+      level: computeLevel(a.days || a.days_until_expiry || 0)
     }));
 
     renderMetrics();

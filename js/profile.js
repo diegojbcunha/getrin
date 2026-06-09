@@ -148,14 +148,6 @@ async function submitAssignTraining() {
   const t = _allAvailableTrainings.find(x => x.id === trainingId);
   if (!t) return;
 
-  // Formata o prazo para exibição amigável
-  let deadlineStr = '—';
-  if (deadlineDate) {
-    const d = new Date(deadlineDate + 'T12:00:00');
-    const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    deadlineStr = `Prazo: ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
-  }
-
   try {
     const res = await fetch(`${API_BASE}/worker-trainings/assign`, {
       method: 'POST',
@@ -166,14 +158,8 @@ async function submitAssignTraining() {
       body: JSON.stringify({
         worker_id: w.id,
         training_id: trainingId,
-        name: t.name,
-        norm: t.norm,
-        hours: t.hours,
-        validity: t.validity || `${t.validity_months} meses`,
-        mode: t.mode || 'Presencial',
+        done_at: deadlineDate || null,
         progress: 0,
-        done: '—',
-        expires: deadlineStr, // Usamos o campo expires para mostrar o prazo enquanto pendente
         status: 'gray',
         status_label: 'Pendente'
       })
@@ -294,8 +280,8 @@ function renderProfileTrainings(w) {
       <td class="td-primary">${t.name}</td>
       <td>${nrTag(t.norm)}</td>
       <td>${progressBar(t.progress, isExpired && t.progress === 100 && t.status === 'red')}</td>
-      <td class="td-mono">${t.done}</td>
-      <td class="td-mono" style="color:${expColor};">${t.expires}</td>
+      <td class="td-mono">${t.done_at ? formatDate(t.done_at) : '—'}</td>
+      <td class="td-mono" style="color:${expColor};">${t.expires ? formatDate(t.expires) : '—'}</td>
       <td>${badge(t.status, t.status_label || t.statusLabel)}</td>
       <td style="text-align:center;">
         <div style="display:flex; justify-content:center; gap:4px;">

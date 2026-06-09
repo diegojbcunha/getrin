@@ -73,40 +73,54 @@ router.get('/me', requireAuth, async (req, res) => {
       trainings = db.assignments.filter(a => a.worker_email === email).map(a => {
         const t = db.trainings.find(tr => tr.id === a.training_id) || {};
         return {
-          id: a.id, training_id: a.training_id,
-          name: t.name || a.training_name || 'Treinamento', norm: t.norm || a.training_norm || '—',
-          progress: a.progress, done: a.done, expires: a.expires,
-        expiresColor: a.expires_color || null, status: a.status, statusLabel: a.status_label,
-      };
-    });
-  } else {
-    const { data, error } = await supabase.from('worker_trainings')
-      .select('id, progress, done, expires, status, status_label, trainings(id,name,norm)')
-      .eq('worker_id', worker.id);
-    if (error) throw error;
-
-    trainings = (data || []).map(t => ({
-      id: t.id, training_id: t.trainings?.id,
-      name: t.trainings?.name, norm: t.trainings?.norm,
-      progress: t.progress, done: t.done, expires: t.expires,
-      expires_color: calcExpiryColor(t.expires),
-      status: t.status, statusLabel: t.status_label,
-    }));
-
-    // Mescla atribuições locais
-    const db = loadLocalDb();
-    const existingIds = new Set(trainings.map(t => t.training_id));
-    db.assignments.filter(a => a.worker_email === email).forEach(a => {
-      if (existingIds.has(a.training_id)) return;
-      const t = db.trainings.find(tr => tr.id === a.training_id) || {};
-      trainings.push({
-        id: a.id, training_id: a.training_id,
-        name: t.name || a.training_name || 'Treinamento', norm: t.norm || a.training_norm || '—',
-        progress: a.progress, done: a.done, expires: a.expires,
-        expiresColor: a.expires_color || null, status: a.status, statusLabel: a.status_label,
+          id: a.id, 
+          training_id: a.training_id,
+          name: t.name || a.training_name || 'Treinamento', 
+          norm: t.norm || a.training_norm || '—',
+          progress: a.progress, 
+          done_at: a.done_at, 
+          expires: a.expires,
+          status: a.status, 
+          status_label: a.status_label,
+        };
       });
-    });
-  }
+    } else {
+      const { data, error } = await supabase.from('worker_trainings')
+        .select('id, progress, done_at, expires, status, status_label, trainings(id,name,norm)')
+        .eq('worker_id', worker.id);
+      if (error) throw error;
+
+      trainings = (data || []).map(t => ({
+        id: t.id, 
+        training_id: t.trainings?.id,
+        name: t.trainings?.name, 
+        norm: t.trainings?.norm,
+        progress: t.progress, 
+        done_at: t.done_at, 
+        expires: t.expires,
+        status: t.status, 
+        status_label: t.status_label,
+      }));
+
+      // Mescla atribuições locais
+      const db = loadLocalDb();
+      const existingIds = new Set(trainings.map(t => t.training_id));
+      db.assignments.filter(a => a.worker_email === email).forEach(a => {
+        if (existingIds.has(a.training_id)) return;
+        const t = db.trainings.find(tr => tr.id === a.training_id) || {};
+        trainings.push({
+          id: a.id, 
+          training_id: a.training_id,
+          name: t.name || a.training_name || 'Treinamento', 
+          norm: t.norm || a.training_norm || '—',
+          progress: a.progress, 
+          done_at: a.done_at, 
+          expires: a.expires,
+          status: a.status, 
+          status_label: a.status_label,
+        });
+      });
+    }
 
     res.json({ ...worker, trainings });
   } catch (err) {

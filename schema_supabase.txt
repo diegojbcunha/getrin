@@ -51,7 +51,9 @@ CREATE TABLE IF NOT EXISTS public.trainings (
     name VARCHAR(255) NOT NULL,
     norm VARCHAR(50) NOT NULL,
     hours INTEGER NOT NULL,
+    validity VARCHAR(100),
     validity_months INTEGER NOT NULL DEFAULT 12,
+    roles VARCHAR(255),
     mode VARCHAR(100) NOT NULL,
     is_active BOOLEAN DEFAULT true,
     status VARCHAR(50) DEFAULT 'green',
@@ -59,15 +61,14 @@ CREATE TABLE IF NOT EXISTS public.trainings (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. TABELA: ASSOCIAÇÃO (worker_trainings)
+-- 4. TABELA: ASSOCIAÇÃO WORKER-TRAININGS (worker_trainings)
 CREATE TABLE IF NOT EXISTS public.worker_trainings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     worker_id UUID NOT NULL REFERENCES public.workers(id) ON DELETE CASCADE,
     training_id UUID NOT NULL REFERENCES public.trainings(id) ON DELETE CASCADE,
     progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
-    done VARCHAR(50) DEFAULT '—', -- Adicionado para compatibilidade
     done_at DATE,
-    expires VARCHAR(50) DEFAULT '—',
+    expires DATE,
     status VARCHAR(50) DEFAULT 'gray',
     status_label VARCHAR(100) DEFAULT 'Pendente',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -77,7 +78,7 @@ CREATE TABLE IF NOT EXISTS public.worker_trainings (
 -- 5. TABELA: ALERTAS (alerts)
 CREATE TABLE IF NOT EXISTS public.alerts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    company_id UUID NOT NULL REFERENCES public.companies(id),
+    company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
     norm VARCHAR(50) NOT NULL,
     title VARCHAR(255) NOT NULL,
     days_until_expiry INTEGER NOT NULL,
@@ -95,3 +96,226 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
     record_id UUID,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ============================================================
+-- ÍNDICES E POLÍTICAS DE SEGURANÇA (RLS)
+-- ============================================================
+
+-- Índices para performance
+CREATE INDEX IF NOT EXISTS idx_workers_company_id ON public.workers(company_id);
+CREATE INDEX IF NOT EXISTS idx_trainings_company_id ON public.trainings(company_id);
+CREATE INDEX IF NOT EXISTS idx_worker_trainings_worker_id ON public.worker_trainings(worker_id);
+CREATE INDEX IF NOT EXISTS idx_worker_trainings_training_id ON public.worker_trainings(training_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_company_id ON public.alerts(company_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_days_until_expiry ON public.alerts(days_until_expiry);
+
+-- ============================================================
+-- HABILITAR ROW LEVEL SECURITY
+-- ============================================================
+
+ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users_profile ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.workers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.trainings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.worker_trainings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.alerts ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
+-- POLÍTICAS PARA COMPANIES
+-- ============================================================
+
+-- Users podem ver sua própria empresa
+CREATE POLICY companies_select_policy ON public.companies
+    FOR SELECT
+    USING (
+        id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- ============================================================
+-- POLÍTICAS PARA WORKERS
+-- ============================================================
+
+-- Users podem ver/modificar workers da sua empresa
+CREATE POLICY workers_select_policy ON public.workers
+    FOR SELECT
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+CREATE POLICY workers_insert_policy ON public.workers
+    FOR INSERT
+    WITH CHECK (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+CREATE POLICY workers_update_policy ON public.workers
+    FOR UPDATE
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+CREATE POLICY workers_delete_policy ON public.workers
+    FOR DELETE
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- ============================================================
+-- POLÍTICAS PARA TRAININGS
+-- ============================================================
+
+-- Users podem ver trainings globais ou da sua empresa
+CREATE POLICY trainings_select_policy ON public.trainings
+    FOR SELECT
+    USING (
+        company_id IS NULL OR company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- Managers podem criar trainings
+CREATE POLICY trainings_insert_policy ON public.trainings
+    FOR INSERT
+    WITH CHECK (
+        (company_id IS NULL) OR
+        (company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        ))
+    );
+
+-- Managers podem atualizar trainings da sua empresa
+CREATE POLICY trainings_update_policy ON public.trainings
+    FOR UPDATE
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- Admins podem deletar trainings
+CREATE POLICY trainings_delete_policy ON public.trainings
+    FOR DELETE
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- ============================================================
+-- POLÍTICAS PARA WORKER_TRAININGS
+-- ============================================================
+
+-- Users podem ver atribuições de workers da sua empresa
+CREATE POLICY worker_trainings_select_policy ON public.worker_trainings
+    FOR SELECT
+    USING (
+        worker_id IN (
+            SELECT id FROM public.workers
+            WHERE company_id IN (
+                SELECT company_id FROM public.users_profile
+                WHERE id = auth.uid()
+            )
+        )
+    );
+
+-- Users/Managers podem criar atribuições
+CREATE POLICY worker_trainings_insert_policy ON public.worker_trainings
+    FOR INSERT
+    WITH CHECK (
+        worker_id IN (
+            SELECT id FROM public.workers
+            WHERE company_id IN (
+                SELECT company_id FROM public.users_profile
+                WHERE id = auth.uid()
+            )
+        )
+    );
+
+-- Users/Managers podem atualizar atribuições
+CREATE POLICY worker_trainings_update_policy ON public.worker_trainings
+    FOR UPDATE
+    USING (
+        worker_id IN (
+            SELECT id FROM public.workers
+            WHERE company_id IN (
+                SELECT company_id FROM public.users_profile
+                WHERE id = auth.uid()
+            )
+        )
+    );
+
+-- Admins podem deletar atribuições
+CREATE POLICY worker_trainings_delete_policy ON public.worker_trainings
+    FOR DELETE
+    USING (
+        worker_id IN (
+            SELECT id FROM public.workers
+            WHERE company_id IN (
+                SELECT company_id FROM public.users_profile
+                WHERE id = auth.uid()
+            )
+        )
+    );
+
+-- ============================================================
+-- POLÍTICAS PARA ALERTS
+-- ============================================================
+
+-- Users podem ver alertas da sua empresa
+CREATE POLICY alerts_select_policy ON public.alerts
+    FOR SELECT
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- Managers podem criar alertas
+CREATE POLICY alerts_insert_policy ON public.alerts
+    FOR INSERT
+    WITH CHECK (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- Managers podem atualizar alertas
+CREATE POLICY alerts_update_policy ON public.alerts
+    FOR UPDATE
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- Managers podem deletar alertas
+CREATE POLICY alerts_delete_policy ON public.alerts
+    FOR DELETE
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );

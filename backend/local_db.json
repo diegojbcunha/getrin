@@ -1,6 +1,46 @@
 {
   "trainings": [],
-  "assignments": [],
+  "assignments": [
+    {
+      "id": "local-assignment-1781028414047",
+      "worker_email": "worker.teste@getrin.com",
+      "worker_id": "2e4a4971-9512-4d41-946a-044482e4a343",
+      "training_id": "a0000000-0000-0000-0000-000000000007",
+      "training_name": "Treinamento",
+      "training_norm": "—",
+      "progress": 0,
+      "done": "—",
+      "expires": "Prazo: 10 Jun 2026",
+      "status": "gray",
+      "status_label": "Pendente"
+    },
+    {
+      "id": "local-assignment-1781028595775",
+      "worker_email": "worker.teste@getrin.com",
+      "worker_id": "2e4a4971-9512-4d41-946a-044482e4a343",
+      "training_id": "a0000000-0000-0000-0000-000000000007",
+      "training_name": "Treinamento",
+      "training_norm": "—",
+      "progress": 0,
+      "done": "—",
+      "expires": "Prazo: 10 Jun 2026",
+      "status": "gray",
+      "status_label": "Pendente"
+    },
+    {
+      "id": "local-assignment-1781028832384",
+      "worker_email": "worker.teste@getrin.com",
+      "worker_id": "2e4a4971-9512-4d41-946a-044482e4a343",
+      "training_id": "a0000000-0000-0000-0000-000000000008",
+      "training_name": "Treinamento",
+      "training_norm": "—",
+      "progress": 0,
+      "done_at": "2026-06-10",
+      "expires": "2027-06-10",
+      "status": "gray",
+      "status_label": "Pendente"
+    }
+  ],
   "workers": [
     {
       "id": "local-worker-1780596234696",

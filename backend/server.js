@@ -22,7 +22,7 @@ const settingsRoutes       = require('./routes/settingsRoutes');
 const tutorRoutes          = require('./routes/tutorRoutes');
 
 const app  = express();
-const PORT = process.env.PORT || 3003;
+const PORT = process.env.PORT || 3000;
 const PROJECT_ROOT = path.join(__dirname, '..');
 
 // ── Middlewares ────────────────────────────────────────────────
