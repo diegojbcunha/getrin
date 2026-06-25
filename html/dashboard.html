@@ -1,9 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Getrin — Dashboard</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
@@ -52,11 +54,7 @@
       </div>
       <div class="topbar-right">
         <!-- RF14: seletor de período de vencimento -->
-        <div class="days-filter" title="Treinamentos vencendo em...">
-          <button class="days-filter-btn active" data-days="30" onclick="loadDashboard(30)">30d</button>
-          <button class="days-filter-btn"        data-days="60" onclick="loadDashboard(60)">60d</button>
-          <button class="days-filter-btn"        data-days="90" onclick="loadDashboard(90)">90d</button>
-        </div>
+        
         <button class="btn" onclick="window.location.href='/html/reports.html'">
           <i class="ti ti-chart-bar"></i>Relatórios
         </button>
@@ -64,6 +62,20 @@
     </div>
 
     <div class="content-area">
+
+      <!-- Botão de Instalação PWA (Destaque) -->
+      <div id="dashboard-install-banner" class="panel" style="display: none; background: var(--accent); color: #fff; padding: 20px; margin-bottom: 20px; align-items: center; justify-content: space-between; border: none;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <div style="font-size: 24px;"><i class="ti ti-device-mobile-down"></i></div>
+          <div>
+            <div style="font-size: 14px; font-weight: 500;">Transforme o Getrin em um Aplicativo</div>
+            <div style="font-size: 12px; opacity: 0.8;">Acesse mais rápido e use offline diretamente do seu dispositivo.</div>
+          </div>
+        </div>
+        <button class="btn" onclick="installPWA()" style="background: #fff; color: var(--accent); border: none; font-weight: 600; padding: 8px 16px;">
+          Instalar Agora
+        </button>
+      </div>
 
       <!-- Métricas -->
       <div class="metrics-row">
@@ -112,12 +124,13 @@
               <th style="width:22%">Trabalhador</th>
               <th style="width:28%">Treinamento</th>
               <th style="width:14%">Norma</th>
-              <th style="width:18%">Data</th>
-              <th style="width:18%">Status</th>
+              <th style="width:14%">Progresso</th>
+              <th style="width:14%">Data</th>
+              <th style="width:14%">Status</th>
             </tr>
           </thead>
           <tbody id="activity-tbody">
-            <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-3);">Carregando...</td></tr>
+            <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-3);">Carregando...</td></tr>
           </tbody>
         </table>
       </div>

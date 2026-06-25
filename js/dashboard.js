@@ -22,15 +22,13 @@ async function loadDashboard(days) {
   });
 
   try {
-    const res = await fetch(`${API_BASE}/dashboard?days=${days}`, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Erro ao obter dados');
-    const data = await res.json();
+    const data = await fetchWithFallback(`/dashboard?days=${days}`, {}, Data);
     renderMetrics(data.metrics);
     renderAlerts(data.alerts);
     renderActivity(data.recentActivity);
   } catch (err) {
     console.error('Erro no Dashboard:', err);
-    showToast('Erro ao carregar dados do servidor.');
+    showToast('Erro ao carregar dados.');
   }
 }
 
@@ -74,7 +72,7 @@ function renderActivity(recentActivity) {
   const tbody = document.getElementById('activity-tbody');
   if (!tbody) return;
   if (!recentActivity || !recentActivity.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-3);">Nenhuma atividade recente.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-3);">Nenhuma atividade recente.</td></tr>';
     return;
   }
   tbody.innerHTML = recentActivity.map(r => `
@@ -82,6 +80,7 @@ function renderActivity(recentActivity) {
       <td class="td-primary">${r.name}</td>
       <td>${r.training}</td>
       <td>${nrTag(r.norm)}</td>
+      <td>${progressBar(r.progress || 0)}</td>
       <td class="td-mono">${r.date}</td>
       <td>${badge(r.status, r.statusLabel)}</td>
     </tr>`).join('');

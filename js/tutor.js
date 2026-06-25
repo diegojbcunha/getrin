@@ -2,54 +2,46 @@
    GETRIN — Tutor de Segurança IA
    js/tutor.js
 
-   COMO CONFIGURAR:
-   1. Acesse https://aistudio.google.com/app/apikey
-   2. Crie uma chave gratuita
-   3. Cole em GEMINI_API_KEY abaixo (ou defina via variável de
-      ambiente se preferir não deixar no código)
-
-   MODELO USADO: gemini-1.5-flash (grátis, rápido)
+   O Tutor agora utiliza um proxy no backend para maior segurança,
+   mantendo a chave da API (GEMINI_API_KEY) protegida no servidor.
    ============================================================= */
-
-const GEMINI_API_KEY = 'SUA_CHAVE_AQUI'; // ← substituir pela chave real
-const GEMINI_MODEL   = 'gemini-1.5-flash-latest';
-const GEMINI_URL     = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
 /* ──────────────────────────────────────────────────────────────
    PROMPT DE SISTEMA
    Define a personalidade e o contexto do tutor.
-   Personalize este texto com as regras específicas da sua empresa.
    ────────────────────────────────────────────────────────────── */
+/* =============================================================
+   GETRIN — Tutor de Segurança IA (Versão 100% em Conformidade)
+   js/tutor.js
+   ============================================================= */
+
 const SYSTEM_PROMPT = `
-Você é o Tutor de Segurança do sistema Getrin, um assistente especializado em
-segurança do trabalho e normas regulamentadoras brasileiras (NRs).
+# PERFIL E IDENTIDADE
+Você é o "Tutor", a inteligência artificial integrada ao GETRIN — um Sistema de Gestão de Treinamentos Corporativos de alta tecnologia desenvolvido em parceria com o SENAI CIMATEC. Seu papel atual é atuar como assistente de aprendizagem especializado em Segurança do Trabalho e Normas Regulamentadoras (NRs) brasileiras para uma indústria metalúrgica.
 
-Seu papel é ajudar colaboradores industriais — especialmente os mais novos —
-a tirar dúvidas sobre procedimentos de segurança, EPIs obrigatórios e normas.
+# DIRETRIZES DE ESTILO E FORMATAÇÃO (CRÍTICO)
+- Responda sempre em português brasileiro, de forma clara, direta e focada no ambiente de "chão de fábrica".
+- Limite estrito: Forneça respostas em no máximo 3 parágrafos curtos.
+- REGRA DE LISTAS: O front-end não possui renderizador de markdown tradicional (como "- item"). Sempre que listar passos ou EPIs, use obrigatoriamente caracteres de marcadores visuais (como "• ", "🛡️ ", "⚠️ ") no início da linha, dependendo da quebra de linha natural (\\n).
+- Use negrito (**texto**) apenas para destacar siglas de NRs, nomes exatos de EPIs ou termos críticos de segurança.
 
-REGRAS DE COMPORTAMENTO:
-- Responda sempre em português brasileiro, de forma clara e acolhedora.
-- Seja direto: responda em no máximo 3 parágrafos curtos.
-- Nunca invente regras. Se não souber, diga "Consulte o responsável de segurança."
-- Use listas com marcadores quando listar EPIs ou passos de procedimento.
-- Não forneça informações sobre outros assuntos — foque em segurança do trabalho.
+# INTEGRAÇÃO COM RECURSOS DO SISTEMA GETRIN
+Sempre que um colaborador perguntar sobre o andamento de cursos, exames ou burocracias, você deve promover os diferenciais da plataforma:
+• Emissão de Certificados: Explique que, ao concluir o treinamento e o quiz no GETRIN, a emissão do certificado é instantânea e automática na plataforma.
+• Gamificação: Incentive o usuário lembrando que concluir módulos acumula pontos e desbloqueia badges no "Centro de Conquistas" do GETRIN (como as insígnias de "Dedicado", "Maratonista" ou "Quiz Expert").
+• Acesso Offline: Se o usuário mencionar problemas de conexão no galpão ou áreas remotas, informe que o aplicativo GETRIN suporta funcionamento offline parcial e sincronizará o progresso assim que houver rede.
 
-CONTEXTO DA EMPRESA (Metalúrgica — Sistema Getrin):
-- Setores: Infraestrutura, Produção, Logística, Manutenção, Qualidade, Administrativo
-- Normas em uso: NR-06 (EPIs), NR-07 (PCMSO), NR-10 (Elétrica), NR-12 (Máquinas),
-  NR-17 (Ergonomia), NR-23 (Incêndio), NR-33 (Espaço Confinado), NR-35 (Altura)
-- EPIs disponíveis no almoxarifado: capacete, luva de vaqueta, luva isolante,
-  óculos de proteção, protetor auricular, botina com biqueira, cinto de segurança,
-  máscara PFF2, avental de raspa
+# ESCOPO E SEGURANÇA JURÍDICA
+- Limite-se estritamente a assuntos de segurança do trabalho, NRs, EPIs e uso do ecossistema GETRIN. Recuse educadamente qualquer outro tema.
+- Nunca invente regras ou prazos personalizados. Se a dúvida envolver uma decisão gerencial, emissão de Permissão de Trabalho (PET) ou se você não tiver certeza absoluta, instrua explicitamente: "Consulte o responsável de segurança ou a equipe do SESMT local."
 
-EXEMPLOS DE PERGUNTAS VÁLIDAS:
-- "Qual EPI devo usar para operar a prensa?"
-- "O que fazer em caso de acidente elétrico?"
-- "Qual a validade do treinamento NR-35?"
-- "Como solicitar um EPI novo?"
+# CONTEXTO OPERACIONAL DA INDÚSTRIA
+- Setores: Infraestrutura, Produção, Logística, Manutenção, Qualidade e Administrativo.
+- Normas Aplicadas: NR-06 (EPIs), NR-07 (PCMSO), NR-10 (Elétrica), NR-12 (Máquinas), NR-17 (Ergonomia), NR-23 (Incêndio), NR-33 (Espaço Confinado) e NR-35 (Trabalho em Altura).
+- Almoxarifado de EPIs: capacete, luva de vaqueta, luva isolante, óculos de proteção, protetor auricular, botina com biqueira, cinto de segurança, máscara PFF2 e avental de raspa.
 `.trim();
 
-/* ──────────────────────────────────────────────────────────────
+   /* ──────────────────────────────────────────────────────────────
    ESTADO DO CHAT
    ────────────────────────────────────────────────────────────── */
 let _tutorOpen    = false;
@@ -59,9 +51,9 @@ let _tutorBusy    = false;
 /* Sugestões mostradas na primeira abertura */
 const SUGGESTIONS = [
   'EPI para trabalho elétrico?',
-  'O que é NR-35?',
-  'Como reportar um acidente?',
-  'Validade do treinamento NR-12?',
+  'Como emito meu certificado?',
+  'O app funciona sem internet?',
+  'Quais as badges da Gamificação?',
 ];
 
 /* ──────────────────────────────────────────────────────────────
@@ -99,16 +91,6 @@ function injectTutor() {
         <i class="ti ti-x tutor-header-close" onclick="tutorToggle()"></i>
       </div>
 
-      <!-- Aviso de chave não configurada -->
-      <div class="tutor-api-warning ${GEMINI_API_KEY !== 'SUA_CHAVE_AQUI' ? 'hidden' : ''}" id="tutor-api-warning">
-        <i class="ti ti-alert-triangle" style="flex-shrink:0;margin-top:1px;"></i>
-        <span>
-          Configure sua chave do Gemini em <strong>js/tutor.js</strong> para ativar as respostas da IA.
-          <a href="https://aistudio.google.com/app/apikey" target="_blank"
-             style="color:var(--amber-800);font-weight:500;">Obter chave gratuita →</a>
-        </span>
-      </div>
-
       <!-- Mensagens -->
       <div class="tutor-messages" id="tutor-messages">
         <!-- Mensagem de boas-vindas injetada pelo JS -->
@@ -140,7 +122,7 @@ function injectTutor() {
 
   // Injeta a mensagem de boas-vindas
   tutorAddMessage('ai',
-    `Olá${State.currentName ? ', ' + State.currentName.split(' ')[0] : ''}! 👷 Sou o Tutor de Segurança do Getrin.\n\nPode me perguntar sobre EPIs, normas regulamentadoras (NRs), procedimentos de segurança ou o que precisar para trabalhar com segurança.`
+    `Olá${typeof State !== 'undefined' && State.currentName ? ', ' + State.currentName.split(' ')[0] : ''}! 👷 Sou o Tutor de Segurança do Getrin.\n\nPode me perguntar sobre EPIs, normas regulamentadoras (NRs), procedimentos de segurança ou o que precisar para trabalhar com segurança.`
   );
 }
 
@@ -152,7 +134,7 @@ function tutorToggle() {
   const panel = document.getElementById('tutor-panel');
   const dot   = document.getElementById('tutor-fab-dot');
   if (panel) panel.classList.toggle('open', _tutorOpen);
-  if (dot)   dot.classList.remove('show'); // limpa notificação ao abrir
+  if (dot)   dot.classList.remove('show'); 
   if (_tutorOpen) {
     setTimeout(() => document.getElementById('tutor-input')?.focus(), 180);
   }
@@ -168,20 +150,16 @@ async function tutorSend(textOverride) {
   const text    = (textOverride || input?.value || '').trim();
   if (!text) return;
 
-  // Limpa input e esconde sugestões após primeira interação
   if (input) input.value = '';
   const sugEl = document.getElementById('tutor-suggestions');
   if (sugEl) sugEl.style.display = 'none';
 
-  // Exibe a mensagem do usuário
   tutorAddMessage('user', text);
 
-  // Impede nova mensagem enquanto processa
   _tutorBusy = true;
   const sendBtn = document.getElementById('tutor-send-btn');
   if (sendBtn) sendBtn.disabled = true;
 
-  // Mostra o indicador de digitação
   const typingEl = tutorShowTyping();
 
   try {
@@ -189,15 +167,13 @@ async function tutorSend(textOverride) {
     tutorRemoveTyping(typingEl);
     tutorAddMessage('ai', reply);
 
-    // Notifica no FAB se o painel estiver fechado (não acontece aqui, mas
-    // útil se o usuário fechar antes da resposta chegar)
     if (!_tutorOpen) {
       const dot = document.getElementById('tutor-fab-dot');
       if (dot) dot.classList.add('show');
     }
   } catch (err) {
     tutorRemoveTyping(typingEl);
-    tutorAddMessage('ai', `Não consegui obter uma resposta no momento. ${err.message || 'Verifique sua chave de API e conexão.'}`);
+    tutorAddMessage('ai', `Não consegui obter uma resposta no momento. ${err.message || 'Verifique a conexão.'}`);
   } finally {
     _tutorBusy = false;
     if (sendBtn) sendBtn.disabled = false;
@@ -206,46 +182,41 @@ async function tutorSend(textOverride) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   CHAMADA À API DO GEMINI
+   CHAMADA AO BACKEND (PROXY GEMINI)
    ────────────────────────────────────────────────────────────── */
 async function tutorCallGemini(userText) {
-  if (GEMINI_API_KEY === 'SUA_CHAVE_AQUI') {
-    // Modo demo: resposta simulada para testar sem chave
-    await new Promise(r => setTimeout(r, 900));
-    return tutorDemoResponse(userText);
+  // Inicializa o histórico com o prompt do sistema se estiver vazio
+  if (_tutorHistory.length === 0) {
+    // No formato do Gemini, podemos passar as instruções de sistema
+    // O proxy no backend cuida de formatar corretamente.
   }
 
-  // Adiciona a mensagem do usuário ao histórico de conversa
   _tutorHistory.push({ role: 'user', parts: [{ text: userText }] });
 
-  const body = {
-    // Instrução de sistema passada como primeira mensagem 'user' + 'model'
-    // (Gemini Flash aceita system_instruction no campo dedicado)
-    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-    contents: _tutorHistory,
-    generationConfig: {
-      temperature:     0.4,  // menos criativo, mais preciso para segurança
-      maxOutputTokens: 512,
-      topP:            0.85,
-    },
-    safetySettings: [
-      { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH',       threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-    ],
+  // Prepara o payload para o nosso proxy no backend
+  const payload = {
+    message: userText,
+    history: [
+      { role: 'user', parts: [{ text: "INSTRUÇÃO DE SISTEMA: " + SYSTEM_PROMPT }] },
+      { role: 'model', parts: [{ text: "Entendido. Serei seu Tutor de Segurança especializado no Getrin." }] },
+      ..._tutorHistory
+    ]
   };
 
-  const res = await fetch(GEMINI_URL, {
+  const API_BASE = `${location.origin}/api`;
+
+  const res = await fetch(`${API_BASE}/tutor/chat`, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${sessionStorage.getItem('getrin_token') || ''}`
+    },
+    body:    JSON.stringify(payload),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    const msg = err?.error?.message || `Erro HTTP ${res.status}`;
-    throw new Error(msg);
+    throw new Error(err.error || `Erro HTTP ${res.status}`);
   }
 
   const data = await res.json();
@@ -253,47 +224,17 @@ async function tutorCallGemini(userText) {
 
   if (!reply) throw new Error('Resposta vazia da IA.');
 
-  // Armazena a resposta no histórico para manter contexto da conversa
   _tutorHistory.push({ role: 'model', parts: [{ text: reply }] });
 
-  // Limita o histórico a 20 turnos para não estourar o limite de tokens
-  if (_tutorHistory.length > 40) _tutorHistory = _tutorHistory.slice(-40);
+  if (_tutorHistory.length > 20) _tutorHistory = _tutorHistory.slice(-20);
 
   return reply;
-}
-
-/* ──────────────────────────────────────────────────────────────
-   RESPOSTAS DEMO (sem chave de API configurada)
-   Permite testar a interface durante o desenvolvimento.
-   ────────────────────────────────────────────────────────────── */
-function tutorDemoResponse(text) {
-  const t = text.toLowerCase();
-
-  if (t.includes('epi') || t.includes('equipamento') || t.includes('proteção')) {
-    return `Para uso geral na linha de produção, os EPIs obrigatórios são:\n\n• Capacete de segurança (NR-06)\n• Óculos de proteção\n• Protetor auricular (em áreas com ruído > 85 dB)\n• Botina com biqueira de aço\n• Luva de vaqueta para manuseio de materiais\n\nPara atividades específicas (elétrica, altura, espaço confinado), consulte o responsável de segurança para os EPIs adicionais.`;
-  }
-  if (t.includes('nr-10') || t.includes('elétric') || t.includes('eletric')) {
-    return `A **NR-10** trata da segurança em instalações e serviços em eletricidade.\n\nPrincipais pontos:\n• Treinamento obrigatório a cada **2 anos**\n• Carga horária mínima: 40 horas\n• EPIs obrigatórios: luva isolante, óculos, capacete com jugular e botina dielétrica\n• Antes de qualquer intervenção elétrica, garantir o bloqueio e etiquetagem (LOTO)\n\nSempre verifique se o equipamento está **desenergizado** antes de iniciar qualquer trabalho.`;
-  }
-  if (t.includes('nr-35') || t.includes('altura')) {
-    return `A **NR-35** regulamenta o trabalho em altura (acima de 2 metros).\n\nRequisitos principais:\n• Treinamento obrigatório a cada **2 anos** (8 horas)\n• Uso obrigatório de cinto de segurança tipo paraquedista + talabarte com absorvedor de impacto\n• Inspeção do ponto de ancoragem antes de iniciar\n• Proibido trabalhar em altura com vento forte, chuva ou superfícies escorregadias\n\nEm caso de dúvida, pare e consulte o supervisor imediatamente.`;
-  }
-  if (t.includes('acidente') || t.includes('emergência') || t.includes('emergencia')) {
-    return `Em caso de acidente ou emergência:\n\n1. **Garanta sua segurança** primeiro — não se exponha ao mesmo risco\n2. Chame socorro imediatamente (ramal interno: 190 ou supervisor direto)\n3. Não mova o acidentado, exceto se houver risco de vida\n4. Preste primeiros socorros básicos se estiver treinado\n5. Preserve o local para investigação\n\nTodo acidente, mesmo sem lesão, deve ser **comunicado ao RH e ao SESMT** no mesmo dia.`;
-  }
-  if (t.includes('nr-12') || t.includes('máquina') || t.includes('maquina') || t.includes('prensa')) {
-    return `A **NR-12** trata de segurança no trabalho em máquinas e equipamentos.\n\nPara operar a prensa ou qualquer máquina:\n• Verifique se os dispositivos de proteção estão instalados e funcionando\n• Nunca remova proteções ou trave sensores de segurança\n• EPIs: óculos, luva de vaqueta, protetor auricular e botina\n• Validade do treinamento: **1 ano**\n\nQualquer anomalia na máquina deve ser reportada ao líder antes de operar.`;
-  }
-
-  // Resposta padrão
-  return `Entendi sua dúvida! Para garantir a resposta mais precisa, recomendo:\n\n• Consultar o manual de segurança da sua área\n• Falar com o técnico de segurança do setor\n• Verificar os procedimentos operacionais padrão (POPs) afixados na área\n\n⚠️ **Modo demonstração ativo** — configure a chave do Gemini em \`js/tutor.js\` para obter respostas completas da IA.`;
 }
 
 /* ──────────────────────────────────────────────────────────────
    HELPERS DE RENDERIZAÇÃO
    ────────────────────────────────────────────────────────────── */
 
-/* Adiciona uma bolha de mensagem na conversa */
 function tutorAddMessage(role, text) {
   const container = document.getElementById('tutor-messages');
   if (!container) return;
@@ -303,7 +244,6 @@ function tutorAddMessage(role, text) {
 
   const bubble = document.createElement('div');
   bubble.className = 'tutor-bubble';
-  // Formata markdown simples: **negrito**, listas com •, quebras de linha
   bubble.innerHTML = tutorFormatText(text);
 
   div.appendChild(bubble);
@@ -311,7 +251,6 @@ function tutorAddMessage(role, text) {
   container.scrollTop = container.scrollHeight;
 }
 
-/* Exibe o indicador de "digitando..." */
 function tutorShowTyping() {
   const container = document.getElementById('tutor-messages');
   if (!container) return null;
@@ -324,25 +263,19 @@ function tutorShowTyping() {
   return div;
 }
 
-/* Remove o indicador de digitação */
 function tutorRemoveTyping(el) {
   if (el && el.parentNode) el.parentNode.removeChild(el);
 }
 
-/* Formata texto com markdown simples para HTML seguro */
 function tutorFormatText(text) {
   return String(text || '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') // escape HTML
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')                   // **negrito**
-    .replace(/`(.+?)`/g, '<code style="font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.07);padding:1px 4px;border-radius:3px;">$1</code>') // `código`
-    .replace(/\n/g, '<br>');                                             // quebras de linha
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`(.+?)`/g, '<code style="font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.07);padding:1px 4px;border-radius:3px;">$1</code>')
+    .replace(/\n/g, '<br>');
 }
 
-/* ──────────────────────────────────────────────────────────────
-   INICIALIZAÇÃO — chamada pelo data.js após DOMContentLoaded
-   ────────────────────────────────────────────────────────────── */
 function initTutor() {
-  // Não exibe o tutor na página de login
   if (window.location.pathname.includes('login')) return;
   injectTutor();
 }

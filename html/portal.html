@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Getrin — Portal do Trabalhador</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
@@ -24,6 +26,9 @@
         <span class="topbar-title">Meus treinamentos</span>
       </div>
       <div class="topbar-right">
+        <button class="btn" onclick="openPortalSettings()">
+          <i class="ti ti-settings"></i>Configurações
+        </button>
         <button class="btn" onclick="showToast('Certificados disponíveis.')">
           <i class="ti ti-certificate"></i>Meus certificados
         </button>
@@ -31,6 +36,35 @@
     </div>
 
     <div class="content-area">
+      
+      <!-- Seção de Configurações (Escondida por padrão) -->
+      <div id="portal-settings-section" style="display: none; margin-bottom: 24px;">
+        <div class="section-div">Minhas Configurações</div>
+        <div class="panel" style="padding: 20px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+            <div class="form-field">
+              <label class="form-label">Nome Completo</label>
+              <input type="text" id="setting-name" class="form-input" placeholder="Seu nome" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Iniciais</label>
+              <input type="text" id="setting-initials" class="form-input" maxlength="2" placeholder="Ex: JD" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Telefone</label>
+              <input type="text" id="setting-phone" class="form-input" placeholder="(00) 00000-0000" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">E-mail (Apenas leitura)</label>
+              <input type="text" id="setting-email" class="form-input" readonly style="background: var(--surface-2); cursor: not-allowed;" />
+            </div>
+          </div>
+          <div style="margin-top: 20px; display: flex; gap: 12px; justify-content: flex-end;">
+            <button class="btn" onclick="closePortalSettings()">Cancelar</button>
+            <button class="btn btn-primary" onclick="savePortalSettings()">Salvar Alterações</button>
+          </div>
+        </div>
+      </div>
 
       <!-- Banner de conformidade -->
       <div class="portal-banner">

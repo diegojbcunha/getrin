@@ -13,7 +13,8 @@ if (fs.existsSync(configPath)) {
   try {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     if (config.supabaseUrl && !config.supabaseUrl.includes('sua-url-do-supabase')) {
-      supabaseUrl = config.supabaseUrl;
+      // Limpa a URL para garantir que seja apenas o domínio base
+      supabaseUrl = config.supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
       supabaseAnonKey = config.supabaseAnonKey;
     }
   } catch (err) {
@@ -26,6 +27,10 @@ if (!supabaseUrl || supabaseUrl.includes("sua-url-do-supabase")) {
 }
 
 const supabaseKey = supabaseServiceRoleKey || supabaseAnonKey;
+if (!supabaseUrl || supabaseUrl.includes('sua-url-do-supabase') || !supabaseKey) {
+  console.error('ERRO: SUPABASE_URL e SUPABASE_ANON_KEY/SUPABASE_SERVICE_ROLE_KEY não configurados corretamente. Verifique .env ou backend/config.json.');
+  throw new Error('Supabase não configurado. Defina SUPABASE_URL e SUPABASE_ANON_KEY (ou SUPABASE_SERVICE_ROLE_KEY).');
+}
 const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: false
@@ -39,3 +44,4 @@ if (supabaseServiceRoleKey) {
 }
 
 module.exports = supabase;
+
