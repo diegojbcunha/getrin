@@ -622,38 +622,3 @@ td.td-mono    { font-family: var(--mono); font-size: 11px; }
   .tutor-fab .ti { font-size: 16px; }
   .tutor-panel { right: 8px; left: 8px; bottom: 72px; max-width: none; }
 }
-
-.materials-editor {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.material-row {
-  display: grid;
-  grid-template-columns: 110px minmax(140px, 1fr) minmax(180px, 1.4fr) auto auto;
-  gap: 8px;
-  align-items: center;
-}
-
-.material-row .material-file {
-  min-width: 160px;
-}
-
-.portal-material-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 160px;
-}
-
-.portal-material-actions .btn {
-  max-width: 220px;
-  justify-content: flex-start;
-}
-
-@media (max-width: 900px) {
-  .material-row {
-    grid-template-columns: 1fr;
-  }
-}

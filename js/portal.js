@@ -144,17 +144,8 @@ function renderPortalPending(list) {
     const dlColor = expiresColor === 'amber' ? 'var(--amber-600)'
                   : expiresColor === 'red'   ? 'var(--red-600)'
                   : 'var(--text-3)';
-    const materials = Array.isArray(t.materials) ? t.materials : [];
-    const viewed = new Set((t.viewed_materials || []).map(String));
     const action = t.progress === 0 ? 'Iniciar' : (t.status === 'red' ? 'Refazer' : 'Continuar');
     const isPrimary = action === 'Continuar' || action === 'Refazer';
-    const materialButtons = materials.length
-      ? materials.map(m => `
-        <button class="btn btn-sm ${viewed.has(String(m.id)) ? '' : 'btn-primary'}"
-                onclick="openTrainingMaterial('${t.id}', '${m.id}')">
-          <i class="ti ${m.type === 'pdf' ? 'ti-file-type-pdf' : 'ti-brand-youtube'}"></i>${m.title}
-        </button>`).join('')
-      : '<span style="color:var(--text-3);font-size:12px;">Sem materiais</span>';
     return `
     <tr>
       <td class="td-primary">${t.name}</td>
@@ -163,7 +154,10 @@ function renderPortalPending(list) {
       <td class="td-mono" style="color:${dlColor};">${t.expires}</td>
       <td>${badge(t.status, t.status_label || t.statusLabel)}</td>
       <td>
-        <div class="portal-material-actions">${materialButtons}</div>
+        <button class="btn btn-sm ${isPrimary ? 'btn-primary' : ''}"
+                onclick="showToast('Abrindo ${t.name}...')">
+          ${action}
+        </button>
       </td>
     </tr>`;
   }).join('');
@@ -178,13 +172,7 @@ function renderPortalCompleted(list) {
     return;
   }
 
-  tbody.innerHTML = list.map(t => {
-    const materials = Array.isArray(t.materials) ? t.materials : [];
-    const materialButtons = materials.map(m => `
-      <button class="btn btn-sm" onclick="openTrainingMaterial('${t.id}', '${m.id}')">
-        <i class="ti ${m.type === 'pdf' ? 'ti-file-type-pdf' : 'ti-brand-youtube'}"></i>${m.title}
-      </button>`).join('');
-    return `
+  tbody.innerHTML = list.map(t => `
     <tr>
       <td class="td-primary">${t.name}</td>
       <td>${nrTag(t.norm)}</td>
@@ -192,51 +180,9 @@ function renderPortalCompleted(list) {
       <td class="td-mono c-green">${t.expires ? formatDate(t.expires) : '—'}</td>
       <td>${badge(t.status, t.status_label || t.statusLabel)}</td>
       <td>
-        <div class="portal-material-actions">${materialButtons || '<span style="color:var(--text-3);font-size:12px;">Sem materiais</span>'}</div>
+        <button class="btn btn-sm" onclick="showToast('Certificado baixado.')">
+          <i class="ti ti-download"></i>PDF
+        </button>
       </td>
-    </tr>`;
-  }).join('');
-}
-
-async function openTrainingMaterial(assignmentId, materialId) {
-  const trainings = _currentWorkerData?.trainings || [];
-  const training = trainings.find(t => String(t.id) === String(assignmentId));
-  const material = training?.materials?.find(m => String(m.id) === String(materialId));
-  if (!material) {
-    showToast('Material nao encontrado.');
-    return;
-  }
-
-  window.open(material.url, '_blank', 'noopener');
-
-  try {
-    const res = await fetch(`${API_BASE}/worker-trainings/${assignmentId}/materials/${materialId}/viewed`, {
-      method: 'POST',
-      headers: getAuthHeaders()
-    });
-    const updated = await res.json();
-    if (!res.ok) throw new Error(updated.error || 'Erro ao atualizar progresso.');
-
-    training.progress = updated.progress;
-    training.status = updated.status;
-    training.status_label = updated.status_label;
-    training.done_at = updated.done_at;
-    training.expires = updated.expires;
-    training.viewed_materials = updated.viewed_materials || training.viewed_materials || [];
-    _currentWorkerData.compliance = trainings.length
-      ? Math.round(trainings.reduce((sum, item) => sum + (Number(item.progress) || 0), 0) / trainings.length)
-      : 0;
-    _currentWorkerData.status = _currentWorkerData.compliance >= 100 ? 'green' : (_currentWorkerData.compliance > 0 ? 'amber' : 'gray');
-    _currentWorkerData.status_label = _currentWorkerData.status === 'green' ? 'Conforme' : (_currentWorkerData.status === 'amber' ? 'Em andamento' : 'Pendente');
-
-    const pending = trainings.filter(t => t.status !== 'green');
-    const completed = trainings.filter(t => t.status === 'green');
-    renderPortalBanner(_currentWorkerData, pending);
-    renderPortalPending(pending);
-    renderPortalCompleted(completed);
-    showToast('Progresso atualizado.');
-  } catch (err) {
-    console.error(err);
-    showToast(err.message || 'Nao foi possivel atualizar o progresso.');
-  }
+    </tr>`).join('');
 }

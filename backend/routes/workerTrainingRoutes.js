@@ -7,16 +7,6 @@ const { requireAuth, requireManager } = require('../middlewares/auth');
 const { loadLocalDb, saveLocalDb } = require('../repositories/localRepository');
 const { ensureWorkerRecord, recalculateCompliance } = require('../repositories/supabaseRepository');
 const { calcExpiryDate, calcExpiryColor, parseExpiryDate } = require('../utils/helpers');
-const { parseMaterials, parseViewedMaterials, calculateMaterialProgress } = require('../utils/materials');
-
-function statusFromProgress(progress, currentStatus) {
-  if (progress >= 100) return { status: 'green', status_label: 'Concluido' };
-  if (currentStatus === 'red' || currentStatus === 'amber') {
-    return { status: currentStatus, status_label: currentStatus === 'red' ? 'Vencido' : 'Em risco' };
-  }
-  if (progress > 0) return { status: 'blue', status_label: 'Em andamento' };
-  return { status: 'gray', status_label: 'Pendente' };
-}
 
 router.post('/assign', requireAuth, requireManager, async (req, res) => {
   try {
@@ -57,7 +47,6 @@ router.post('/assign', requireAuth, requireManager, async (req, res) => {
           worker_id: resolvedWorkerId,
           training_id,
           progress: progress ?? 0,
-          viewed_materials: [],
           done_at: finalDoneAt,
           expires: finalExpires,
           status: status || 'gray',
@@ -80,7 +69,6 @@ router.post('/assign', requireAuth, requireManager, async (req, res) => {
         training_name: t.name,
         training_norm: t.norm,
         progress: progress ?? 0,
-        viewed_materials: [],
         done_at: finalDoneAt,
         expires: finalExpires,
         status: status || 'gray',
@@ -95,100 +83,8 @@ router.post('/assign', requireAuth, requireManager, async (req, res) => {
   }
 });
 
-router.post('/:id/materials/:materialId/viewed', requireAuth, async (req, res) => {
-  try {
-    const assignmentId = req.params.id;
-    const materialId = String(req.params.materialId);
-
-    const { data: assignment, error } = await supabase
-      .from('worker_trainings')
-      .select('id, worker_id, training_id, progress, status, done_at, viewed_materials, workers!inner(email, company_id), trainings(id, materials, validity_months)')
-      .eq('id', assignmentId)
-      .single();
-
-    if (error) throw error;
-    if (!assignment) return res.status(404).json({ error: 'Atribuicao nao encontrada.' });
-
-    const isOwner = assignment.workers?.email === req.session.email || assignment.worker_id === req.session.user_id;
-    const isManager = ['manager', 'admin'].includes(req.session.role)
-      && assignment.workers?.company_id === req.session.company_id;
-
-    if (!isOwner && !isManager) {
-      return res.status(403).json({ error: 'Voce nao tem permissao para atualizar este treinamento.' });
-    }
-
-    const materials = parseMaterials(assignment.trainings?.materials || []);
-    if (!materials.some(m => String(m.id) === materialId)) {
-      return res.status(404).json({ error: 'Material nao encontrado neste treinamento.' });
-    }
-
-    const viewed = new Set(parseViewedMaterials(assignment.viewed_materials));
-    viewed.add(materialId);
-    const viewed_materials = Array.from(viewed);
-    const nextProgress = calculateMaterialProgress(materials, viewed_materials);
-    const nextStatus = statusFromProgress(nextProgress, assignment.status);
-
-    const update = {
-      viewed_materials,
-      progress: nextProgress,
-      status: nextStatus.status,
-      status_label: nextStatus.status_label,
-    };
-
-    if (nextProgress >= 100 && !assignment.done_at) {
-      const done = new Date();
-      update.done_at = done.toISOString().split('T')[0];
-      if (assignment.trainings?.validity_months) {
-        done.setMonth(done.getMonth() + assignment.trainings.validity_months);
-        update.expires = done.toISOString().split('T')[0];
-      }
-    }
-
-    const { data, error: updateError } = await supabase
-      .from('worker_trainings')
-      .update(update)
-      .eq('id', assignmentId)
-      .select()
-      .single();
-
-    if (updateError) throw updateError;
-    await recalculateCompliance(data.worker_id);
-
-    res.json(data);
-  } catch (err) {
-    const db = loadLocalDb();
-    const assignment = db.assignments.find(a => a.id === req.params.id);
-    if (!assignment) return res.status(500).json({ error: err.message });
-
-    const training = db.trainings.find(t => t.id === assignment.training_id) || {};
-    const materials = parseMaterials(training.materials || []);
-    const viewed = new Set(parseViewedMaterials(assignment.viewed_materials));
-    viewed.add(String(req.params.materialId));
-    assignment.viewed_materials = Array.from(viewed);
-    assignment.progress = calculateMaterialProgress(materials, assignment.viewed_materials);
-    const nextStatus = statusFromProgress(assignment.progress, assignment.status);
-    assignment.status = nextStatus.status;
-    assignment.status_label = nextStatus.status_label;
-    if (assignment.progress >= 100 && !assignment.done_at) {
-      assignment.done_at = new Date().toISOString().split('T')[0];
-    }
-    saveLocalDb(db);
-    res.json(assignment);
-  }
-});
-
 router.put('/:id', requireAuth, requireManager, async (req, res) => {
   try {
-    const { data: existing, error: existingError } = await supabase
-      .from('worker_trainings')
-      .select('id, workers!inner(company_id)')
-      .eq('id', req.params.id)
-      .single();
-    if (existingError) throw existingError;
-    if (existing.workers?.company_id !== req.session.company_id) {
-      return res.status(403).json({ error: 'Voce nao tem permissao para atualizar esta atribuicao.' });
-    }
-
     const { progress, done_at, training_id, status, status_label } = req.body;
     let expires = req.body.expires;
 
@@ -224,16 +120,6 @@ router.delete('/:id', requireAuth, async (req, res) => {
   if (req.session.role !== 'admin')
     return res.status(403).json({ error: 'Somente administradores podem remover atribuições.' });
   try {
-    const { data: existing, error: existingError } = await supabase
-      .from('worker_trainings')
-      .select('id, workers!inner(company_id)')
-      .eq('id', req.params.id)
-      .single();
-    if (existingError) throw existingError;
-    if (existing.workers?.company_id !== req.session.company_id) {
-      return res.status(403).json({ error: 'Voce nao tem permissao para remover esta atribuicao.' });
-    }
-
     const { data: wt } = await supabase.from('worker_trainings')
       .select('worker_id')
       .eq('id', req.params.id)

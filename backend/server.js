@@ -28,13 +28,12 @@ const PROJECT_ROOT = path.join(__dirname, '..');
 
 // ── Middlewares ────────────────────────────────────────────────
 app.use(cors({ origin: process.env.ALLOWED_ORIGIN || '*' }));
-app.use(express.json({ limit: '20mb' }));
+app.use(express.json({ limit: '2mb' }));
 
 // Arquivos estáticos do frontend
 app.use('/css',  express.static(path.join(PROJECT_ROOT, 'css')));
 app.use('/js',   express.static(path.join(PROJECT_ROOT, 'js')));
 app.use('/html', express.static(path.join(PROJECT_ROOT, 'html')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(PROJECT_ROOT));
 
 // Redirecionamentos básicos
