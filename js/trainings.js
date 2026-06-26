@@ -85,6 +85,32 @@ function openEditTrainingModal(trainingId) {
   openModal('modal-training');
 }
 
+/* Abre o modal para editar um treinamento */
+function openEditTrainingModal(id, name, norm, hours, validity, mode, roles) {
+  const modal = document.getElementById('modal-training');
+  const title = document.getElementById('modal-training-title');
+  
+  title.textContent = 'Editar treinamento';
+  modal.dataset.trainingId = id;
+  document.getElementById('btn-submit-training').textContent = 'Salvar alterações';
+  
+  document.getElementById('training-name').value = name;
+  document.getElementById('training-norm').value = norm;
+  document.getElementById('training-hours').value = hours;
+  document.getElementById('training-validity').value = validity;
+  document.getElementById('training-mode').value = mode;
+  document.getElementById('training-roles').value = roles;
+  document.getElementById('training-worker-email').value = '';
+  
+  // Esconde o campo de empresa quando editando
+  const companyField = document.getElementById('training-company')?.closest('.form-field');
+  if (companyField) {
+    companyField.style.display = 'none';
+  }
+  
+  openModal('modal-training');
+}
+
 /* Filtro de busca em tempo real */
 function filterTrainings(query) {
   const q = query.toLowerCase();
