@@ -2,9 +2,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const UPLOAD_ROOT = path.join(__dirname, '..', 'uploads', 'materials');
 const MAX_PDF_BYTES = 12 * 1024 * 1024;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function safeId(value) {
   return String(value || '')
@@ -15,8 +18,18 @@ function safeId(value) {
     .slice(0, 80);
 }
 
-function makeMaterialId(prefix = 'mat') {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+/**
+ * Gera/valida o id do material.
+ * IMPORTANTE: worker_trainings.viewed_materials é uuid[] no Postgres,
+ * então todo material precisa ter um id em formato UUID real.
+ * Se o item já vier com um uuid válido (ex: edição de um material existente),
+ * reaproveita — isso preserva o histórico de "viewed_materials" dos workers
+ * que já marcaram aquele material como visto.
+ */
+function resolveMaterialId(rawId) {
+  const candidate = String(rawId || '').trim();
+  if (UUID_RE.test(candidate)) return candidate.toLowerCase();
+  return crypto.randomUUID();
 }
 
 function ensureUploadDir() {
@@ -36,7 +49,8 @@ function savePdfMaterial(material) {
   if (buffer.slice(0, 4).toString() !== '%PDF') throw new Error('O arquivo enviado precisa ser um PDF.');
 
   ensureUploadDir();
-  const filename = `${safeId(material.id) || makeMaterialId('pdf')}.pdf`;
+  // Usa o id (já resolvido para uuid) como nome de arquivo — estável e único.
+  const filename = `${safeId(material.id) || crypto.randomUUID()}.pdf`;
   fs.writeFileSync(path.join(UPLOAD_ROOT, filename), buffer);
   return `/uploads/materials/${filename}`;
 }
@@ -47,7 +61,7 @@ function normalizeMaterials(input = []) {
   return source
     .map((item, index) => {
       const type = item.type === 'pdf' ? 'pdf' : 'youtube';
-      const id = safeId(item.id) || makeMaterialId(type);
+      const id = resolveMaterialId(item.id);
       const title = String(item.title || '').trim() || `Material ${index + 1}`;
       let url = String(item.url || '').trim();
 
