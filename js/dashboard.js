@@ -72,7 +72,7 @@ function renderActivity(recentActivity) {
   const tbody = document.getElementById('activity-tbody');
   if (!tbody) return;
   if (!recentActivity || !recentActivity.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-3);">Nenhuma atividade recente.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-3);">Nenhuma atividade recente.</td></tr>';
     return;
   }
   tbody.innerHTML = recentActivity.map(r => `
@@ -80,7 +80,6 @@ function renderActivity(recentActivity) {
       <td class="td-primary">${r.name}</td>
       <td>${r.training}</td>
       <td>${nrTag(r.norm)}</td>
-      <td>${progressBar(r.progress || 0)}</td>
       <td class="td-mono">${r.date}</td>
       <td>${badge(r.status, r.statusLabel)}</td>
     </tr>`).join('');

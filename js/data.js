@@ -463,16 +463,6 @@ function injectSharedHTML() {
             <label class="form-label">E-mail do funcionário (opcional)</label>
             <input class="form-input" id="training-worker-email" type="email" placeholder="funcionario@empresa.com" />
           </div>
-          <div class="form-field">
-            <label class="form-label">Materiais do treinamento</label>
-            <div id="training-materials-list" class="materials-editor"></div>
-            <button type="button" class="btn btn-sm" onclick="addTrainingMaterialRow('youtube')">
-              <i class="ti ti-brand-youtube"></i>Adicionar video
-            </button>
-            <button type="button" class="btn btn-sm" onclick="addTrainingMaterialRow('pdf')">
-              <i class="ti ti-file-type-pdf"></i>Adicionar PDF
-            </button>
-          </div>
         </div>
         <div class="modal-footer">
           <button class="btn" onclick="closeModal('modal-training'); resetTrainingModal();">Cancelar</button>
@@ -512,73 +502,6 @@ function injectSharedHTML() {
       </div>
     </div>
   `);
-  addTrainingMaterialRow('youtube');
-}
-
-function addTrainingMaterialRow(type = 'youtube', material = {}) {
-  const list = document.getElementById('training-materials-list');
-  if (!list) return;
-
-  const row = document.createElement('div');
-  row.className = 'material-row';
-  row.dataset.type = material.type || type;
-  row.dataset.id = material.id || '';
-  row.innerHTML = `
-    <select class="form-select material-type" onchange="updateMaterialRowType(this)">
-      <option value="youtube"${row.dataset.type === 'youtube' ? ' selected' : ''}>YouTube</option>
-      <option value="pdf"${row.dataset.type === 'pdf' ? ' selected' : ''}>PDF</option>
-    </select>
-    <input class="form-input material-title" placeholder="Titulo do material" value="${material.title || ''}" />
-    <input class="form-input material-url" placeholder="${row.dataset.type === 'pdf' ? 'Link do PDF ou envie um arquivo' : 'Link do video no YouTube'}" value="${material.url || ''}" />
-    <input class="form-input material-file" type="file" accept="application/pdf" style="${row.dataset.type === 'pdf' ? '' : 'display:none'}" />
-    <button type="button" class="btn btn-icon" onclick="this.closest('.material-row').remove()" title="Remover material">
-      <i class="ti ti-trash"></i>
-    </button>
-  `;
-  list.appendChild(row);
-}
-
-function updateMaterialRowType(select) {
-  const row = select.closest('.material-row');
-  if (!row) return;
-  row.dataset.type = select.value;
-  const file = row.querySelector('.material-file');
-  const url = row.querySelector('.material-url');
-  if (file) file.style.display = select.value === 'pdf' ? '' : 'none';
-  if (url) url.placeholder = select.value === 'pdf' ? 'Link do PDF ou envie um arquivo' : 'Link do video no YouTube';
-}
-
-function readPdfFile(file) {
-  return new Promise((resolve, reject) => {
-    if (!file) return resolve('');
-    if (file.type !== 'application/pdf') return reject(new Error('Envie apenas arquivos PDF.'));
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('Nao foi possivel ler o PDF.'));
-    reader.readAsDataURL(file);
-  });
-}
-
-async function collectTrainingMaterials() {
-  const rows = Array.from(document.querySelectorAll('#training-materials-list .material-row'));
-  const materials = [];
-
-  for (let index = 0; index < rows.length; index++) {
-    const row = rows[index];
-    const type = row.querySelector('.material-type')?.value || 'youtube';
-    const title = row.querySelector('.material-title')?.value.trim() || '';
-    const url = row.querySelector('.material-url')?.value.trim() || '';
-    const file = row.querySelector('.material-file')?.files?.[0] || null;
-    const pdf_data = type === 'pdf' && file ? await readPdfFile(file) : '';
-
-    if (!title && !url && !pdf_data) continue;
-    if (!title) throw new Error('Informe o titulo de todos os materiais.');
-    if (!url && !pdf_data) throw new Error('Informe um link ou arquivo para cada material.');
-
-    materials.push({ id: row.dataset.id || undefined, type, title, url, pdf_data, order: index });
-  }
-
-  return materials;
 }
 
 async function submitTrainingModal() {
@@ -606,8 +529,7 @@ async function submitTrainingModal() {
   try {
     const method = trainingId ? 'PUT' : 'POST';
     const url = trainingId ? `${API_BASE}/trainings/${trainingId}` : `${API_BASE}/trainings`;
-    const materials = await collectTrainingMaterials();
-    const body = { name, norm, hours, validity, roles, mode, worker_email, materials };
+    const body = { name, norm, hours, validity, roles, mode, worker_email };
     if (!trainingId && company_id) body.company_id = company_id;
 
     const res = await fetch(url, {
@@ -650,11 +572,6 @@ function resetTrainingModal() {
   document.getElementById('training-hours').value = '';
   document.getElementById('training-roles').value = '';
   document.getElementById('training-worker-email').value = '';
-  const materialsList = document.getElementById('training-materials-list');
-  if (materialsList) {
-    materialsList.innerHTML = '';
-    addTrainingMaterialRow('youtube');
-  }
   document.getElementById('training-company').selectedIndex = 0;
   document.getElementById('training-norm').selectedIndex = 0;
   document.getElementById('training-validity').selectedIndex = 0;

@@ -8,11 +8,9 @@ const { requireAuth, requireManager } = require('../middlewares/auth');
 // --- Listar empresas disponíveis (para vinculação de treinamentos) ---
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const { company_id } = req.session;
     const { data, error } = await supabase
       .from('companies')
       .select('id, name, cnpj, sector')
-      .eq('id', company_id)
       .order('name');
     
     if (error) throw error;
