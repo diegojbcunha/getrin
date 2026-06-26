@@ -1,6 +1,7 @@
 backend/.env
 backend/.env.example
 backend/users.json
+backend/uploads/
 backend/node_modules/
 node_modules/
 .DS_Store

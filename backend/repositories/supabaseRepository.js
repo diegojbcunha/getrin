@@ -47,12 +47,11 @@ async function recalculateCompliance(workerId) {
   if (!workerId || String(workerId).startsWith('local-')) return;
   try {
     const { data: trainings, error } = await supabase.from('worker_trainings')
-      .select('status').eq('worker_id', workerId);
+      .select('status, progress').eq('worker_id', workerId);
     if (error || !trainings?.length) return;
 
     const total      = trainings.length;
-    const validCount = trainings.filter(t => t.status === 'green').length;
-    const pct        = Math.round((validCount / total) * 100);
+    const pct        = Math.round(trainings.reduce((sum, t) => sum + (Number(t.progress) || 0), 0) / total);
 
     const hasExpired = trainings.some(t => t.status === 'red' || t.status === 'amber');
     const hasPending = trainings.some(t => t.status === 'gray' || t.status === 'blue');

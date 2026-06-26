@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS public.trainings (
     validity_months INTEGER NOT NULL DEFAULT 12,
     roles VARCHAR(255),
     mode VARCHAR(100) NOT NULL,
+    materials JSONB DEFAULT '[]'::jsonb,
     is_active BOOLEAN DEFAULT true,
     status VARCHAR(50) DEFAULT 'green',
     status_label VARCHAR(100) DEFAULT 'Ativo',
@@ -67,6 +68,7 @@ CREATE TABLE IF NOT EXISTS public.worker_trainings (
     worker_id UUID NOT NULL REFERENCES public.workers(id) ON DELETE CASCADE,
     training_id UUID NOT NULL REFERENCES public.trainings(id) ON DELETE CASCADE,
     progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+    viewed_materials JSONB DEFAULT '[]'::jsonb,
     done_at DATE,
     expires DATE,
     status VARCHAR(50) DEFAULT 'gray',
@@ -82,7 +84,7 @@ CREATE TABLE IF NOT EXISTS public.alerts (
     norm VARCHAR(50) NOT NULL,
     title VARCHAR(255) NOT NULL,
     days_until_expiry INTEGER NOT NULL,
-    level VARCHAR(50) NOT NULL CHECK (level IN ('urgent', 'monitor')),
+    level VARCHAR(50) NOT NULL CHECK (level IN ('expired', 'urgent', 'warning', 'monitor')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -108,6 +110,79 @@ CREATE INDEX IF NOT EXISTS idx_worker_trainings_worker_id ON public.worker_train
 CREATE INDEX IF NOT EXISTS idx_worker_trainings_training_id ON public.worker_trainings(training_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_company_id ON public.alerts(company_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_days_until_expiry ON public.alerts(days_until_expiry);
+
+-- Atualizacoes seguras para bancos ja criados antes desta versao
+ALTER TABLE public.trainings
+    ADD COLUMN IF NOT EXISTS materials JSONB DEFAULT '[]'::jsonb;
+
+ALTER TABLE public.worker_trainings
+    ADD COLUMN IF NOT EXISTS viewed_materials JSONB DEFAULT '[]'::jsonb;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE table_schema = 'public'
+          AND table_name = 'alerts'
+          AND constraint_name = 'alerts_level_check'
+    ) THEN
+        ALTER TABLE public.alerts DROP CONSTRAINT alerts_level_check;
+    END IF;
+
+    ALTER TABLE public.alerts
+        ADD CONSTRAINT alerts_level_check
+        CHECK (level IN ('expired', 'urgent', 'warning', 'monitor'));
+END $$;
+
+-- ============================================================
+-- FUNCOES E TRIGGERS
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+    metadata_company_id UUID;
+BEGIN
+    metadata_company_id := COALESCE(
+        NULLIF(NEW.raw_user_meta_data->>'company_id', '')::UUID,
+        '00000000-0000-0000-0000-000000000000'::UUID
+    );
+
+    INSERT INTO public.users_profile (id, company_id, name, role)
+    VALUES (
+        NEW.id,
+        metadata_company_id,
+        COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'full_name', 'Novo Usuario'),
+        COALESCE(NEW.raw_user_meta_data->>'role', 'worker')
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET
+        company_id = EXCLUDED.company_id,
+        name = EXCLUDED.name,
+        role = EXCLUDED.role;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+CREATE OR REPLACE FUNCTION public.clean_expired_alerts()
+RETURNS INTEGER AS $$
+DECLARE
+    removed_count INTEGER;
+BEGIN
+    DELETE FROM public.alerts
+    WHERE days_until_expiry < -30;
+
+    GET DIAGNOSTICS removed_count = ROW_COUNT;
+    RETURN removed_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================
 -- HABILITAR ROW LEVEL SECURITY

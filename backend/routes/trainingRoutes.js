@@ -7,6 +7,7 @@ const { requireAuth, requireManager } = require('../middlewares/auth');
 const { loadLocalDb, saveLocalDb } = require('../repositories/localRepository');
 const { ensureWorkerRecord, recalculateCompliance } = require('../repositories/supabaseRepository');
 const { calcExpiryDate, calcExpiryColor, parseExpiryDate } = require('../utils/helpers');
+const { normalizeMaterials } = require('../utils/materials');
 
 // --- Trainings Catalog ---
 
@@ -33,20 +34,27 @@ router.post('/', requireAuth, requireManager, async (req, res) => {
   try {
     const sessionCompanyId = req.session.company_id;
     // Aceita company_id do frontend, mas valida com a sessão para segurança
-    const requestedCompanyId = req.body.company_id || sessionCompanyId;
-    const company_id = requestedCompanyId;
-    
-    const { name, norm, hours, validity, validity_months, roles, mode, worker_email } = req.body;
-    if (!name || !norm || !hours || !validity || !mode)
-      return res.status(400).json({ error: 'Campos obrigatórios: name, norm, hours, validity, mode.' });
+    const company_id = sessionCompanyId;
+
+    const { name, norm, hours, validity_months, mode, worker_email } = req.body;
+    const materials = normalizeMaterials(req.body.materials || []);
+
+    // validity_months pode legitimamente ser 0 (sem reciclagem) — não usar `||` aqui.
+    const resolvedValidityMonths = Number.isFinite(Number(validity_months)) ? Number(validity_months) : 12;
+
+    if (!name || !norm || !hours || !mode)
+      return res.status(400).json({ error: 'Campos obrigatórios: name, norm, hours, mode.' });
 
     let training;
     try {
       const { data, error } = await supabase.from('trainings')
-        .insert([{ 
+        .insert([{
           company_id, // Vincula à empresa
-          name, norm, hours, validity, validity_months: validity_months || 12, roles, mode, 
-          status: 'green', status_label: 'Ativo' 
+          name, norm, hours,
+          validity_months: resolvedValidityMonths,
+          mode,
+          materials,
+          status: 'green', status_label: 'Ativo'
         }])
         .select().single();
       if (error) throw error;
@@ -54,7 +62,10 @@ router.post('/', requireAuth, requireManager, async (req, res) => {
     } catch (_) {
       const db = loadLocalDb();
       training = {
-        id: `local-training-${Date.now()}`, name, norm, hours, validity, roles, mode, company_id,
+        id: `local-training-${Date.now()}`, name, norm, hours,
+        validity_months: resolvedValidityMonths,
+        mode, company_id,
+        materials,
         status: 'green', status_label: 'Ativo', source: 'local',
       };
       db.trainings.push(training);
@@ -68,7 +79,7 @@ router.post('/', requireAuth, requireManager, async (req, res) => {
       assignment = {
         id: `local-assignment-${Date.now()}`,
         worker_email: worker.email, worker_id: worker.id,
-        training_id: training.id, progress: 0,
+        training_id: training.id, progress: 0, viewed_materials: [],
         done: '—', expires: '—', status: 'gray', status_label: 'Pendente',
       };
       db.assignments.push(assignment);
@@ -85,7 +96,11 @@ router.delete('/:id', requireAuth, async (req, res) => {
   if (req.session.role !== 'admin')
     return res.status(403).json({ error: 'Somente administradores podem excluir treinamentos.' });
   try {
-    const { error } = await supabase.from('trainings').delete().eq('id', req.params.id);
+    const { company_id } = req.session;
+    const { error } = await supabase.from('trainings')
+      .delete()
+      .eq('id', req.params.id)
+      .eq('company_id', company_id);
     if (error) throw error;
     res.json({ message: 'Treinamento removido com sucesso.' });
   } catch (err) {
@@ -98,10 +113,13 @@ router.put('/:id', requireAuth, requireManager, async (req, res) => {
   try {
     const { company_id } = req.session;
     const { id } = req.params;
-    const { name, norm, hours, validity, validity_months, roles, mode } = req.body;
-    
-    if (!name || !norm || !hours || !validity || !mode)
-      return res.status(400).json({ error: 'Campos obrigatórios: name, norm, hours, validity, mode.' });
+    const { name, norm, hours, validity_months, mode } = req.body;
+    const materials = normalizeMaterials(req.body.materials || []);
+
+    const resolvedValidityMonths = Number.isFinite(Number(validity_months)) ? Number(validity_months) : 12;
+
+    if (!name || !norm || !hours || !mode)
+      return res.status(400).json({ error: 'Campos obrigatórios: name, norm, hours, mode.' });
 
     // Verifica se o treinamento pertence à empresa logada ou é global
     const { data: existing, error: checkError } = await supabase
@@ -121,7 +139,9 @@ router.put('/:id', requireAuth, requireManager, async (req, res) => {
     const { data, error } = await supabase
       .from('trainings')
       .update({
-        name, norm, hours, validity, validity_months: validity_months || 12, roles, mode
+        name, norm, hours,
+        validity_months: resolvedValidityMonths,
+        mode, materials
       })
       .eq('id', id)
       .select()

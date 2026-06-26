@@ -30,7 +30,9 @@ function renderTrainings(list) {
 
   if (count) count.textContent = list.length + ' treinamentos';
 
-  tbody.innerHTML = list.map(t => `
+  tbody.innerHTML = list.map(t => {
+    const materials = Array.isArray(t.materials) ? t.materials : [];
+    return `
     <tr>
       <td class="td-primary">${t.name}</td>
       <td>${nrTag(t.norm)}</td>
@@ -40,9 +42,47 @@ function renderTrainings(list) {
       <td>${badge('blue', t.mode)}</td>
       <td>${badge(t.status, t.status_label || t.statusLabel || 'Ativo')}</td>
       <td style="text-align:center;">
-      
+        <button class="btn btn-sm" onclick="openEditTrainingModal('${t.id}')">
+          <i class="ti ti-edit"></i>Editar
+        </button>
+        <div style="margin-top:4px;color:var(--text-3);font-size:11px;">${materials.length} material${materials.length === 1 ? '' : 's'}</div>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+}
+
+/* Abre o modal para editar um treinamento */
+function openEditTrainingModal(trainingId) {
+  const training = trainingsData.find(t => String(t.id) === String(trainingId));
+  if (!training) return;
+  const { id, name, norm, hours, validity, mode, roles, materials = [] } = training;
+  const modal = document.getElementById('modal-training');
+  const title = document.getElementById('modal-training-title');
+  
+  title.textContent = 'Editar treinamento';
+  modal.dataset.trainingId = id;
+  document.getElementById('btn-submit-training').textContent = 'Salvar alterações';
+  
+  document.getElementById('training-name').value = name;
+  document.getElementById('training-norm').value = norm;
+  document.getElementById('training-hours').value = hours;
+  document.getElementById('training-validity').value = validity;
+  document.getElementById('training-mode').value = mode;
+  document.getElementById('training-roles').value = roles;
+  document.getElementById('training-worker-email').value = '';
+  const list = document.getElementById('training-materials-list');
+  if (list) {
+    list.innerHTML = '';
+    (materials.length ? materials : [{ type: 'youtube' }]).forEach(m => addTrainingMaterialRow(m.type || 'youtube', m));
+  }
+  
+  // Esconde o campo de empresa quando editando
+  const companyField = document.getElementById('training-company')?.closest('.form-field');
+  if (companyField) {
+    companyField.style.display = 'none';
+  }
+  
+  openModal('modal-training');
 }
 
 /* Abre o modal para editar um treinamento */

@@ -7,6 +7,7 @@ const { requireAuth, requireManager } = require('../middlewares/auth');
 const { ensureWorkerRecord } = require('../repositories/supabaseRepository');
 const { loadLocalDb } = require('../repositories/localRepository');
 const { calcExpiryColor } = require('../utils/helpers');
+const { parseMaterials, parseViewedMaterials, calculateMaterialProgress } = require('../utils/materials');
 
 // Listar todos (gestor/admin da empresa logada)
 router.get('/', requireAuth, requireManager, async (req, res) => {
@@ -80,13 +81,16 @@ router.get('/me', requireAuth, async (req, res) => {
           progress: a.progress, 
           done_at: a.done_at, 
           expires: a.expires,
+          materials: parseMaterials(t.materials || []),
+          viewed_materials: parseViewedMaterials(a.viewed_materials),
+          material_progress: calculateMaterialProgress(parseMaterials(t.materials || []), a.viewed_materials),
           status: a.status, 
           status_label: a.status_label,
         };
       });
     } else {
       const { data, error } = await supabase.from('worker_trainings')
-        .select('id, progress, done_at, expires, status, status_label, trainings(id,name,norm)')
+        .select('id, progress, done_at, expires, status, status_label, viewed_materials, trainings(id,name,norm,materials)')
         .eq('worker_id', worker.id);
       if (error) throw error;
 
@@ -98,6 +102,10 @@ router.get('/me', requireAuth, async (req, res) => {
         progress: t.progress, 
         done_at: t.done_at, 
         expires: t.expires,
+        expires_color: calcExpiryColor(t.expires),
+        materials: parseMaterials(t.trainings?.materials || []),
+        viewed_materials: parseViewedMaterials(t.viewed_materials),
+        material_progress: calculateMaterialProgress(parseMaterials(t.trainings?.materials || []), t.viewed_materials),
         status: t.status, 
         status_label: t.status_label,
       }));
@@ -116,6 +124,9 @@ router.get('/me', requireAuth, async (req, res) => {
           progress: a.progress, 
           done_at: a.done_at, 
           expires: a.expires,
+          materials: parseMaterials(t.materials || []),
+          viewed_materials: parseViewedMaterials(a.viewed_materials),
+          material_progress: calculateMaterialProgress(parseMaterials(t.materials || []), a.viewed_materials),
           status: a.status, 
           status_label: a.status_label,
         });
@@ -131,12 +142,16 @@ router.get('/me', requireAuth, async (req, res) => {
 // Detalhe de um trabalhador pelo ID (gestor/admin)
 router.get('/:id', requireAuth, requireManager, async (req, res) => {
   try {
+    const { company_id } = req.session;
     const { data: worker, error: wErr } = await supabase.from('workers')
-      .select('*').eq('id', req.params.id).single();
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('company_id', company_id)
+      .single();
     if (wErr) throw wErr;
 
     const { data: trainings, error: tErr } = await supabase.from('worker_trainings')
-      .select('id, progress, done, expires, status, status_label, trainings(id,name,norm)')
+      .select('id, progress, done_at, expires, status, status_label, viewed_materials, trainings(id,name,norm,materials)')
       .eq('worker_id', req.params.id);
     if (tErr) throw tErr;
 
@@ -145,8 +160,11 @@ router.get('/:id', requireAuth, requireManager, async (req, res) => {
       trainings: trainings.map(t => ({
         id: t.id, training_id: t.trainings?.id,
         name: t.trainings?.name, norm: t.trainings?.norm,
-        progress: t.progress, done: t.done, expires: t.expires,
+        progress: t.progress, done_at: t.done_at, expires: t.expires,
         expires_color: calcExpiryColor(t.expires),
+        materials: parseMaterials(t.trainings?.materials || []),
+        viewed_materials: parseViewedMaterials(t.viewed_materials),
+        material_progress: calculateMaterialProgress(parseMaterials(t.trainings?.materials || []), t.viewed_materials),
         status: t.status, status_label: t.status_label,
       })),
     });
@@ -190,8 +208,13 @@ router.put('/:id', requireAuth, requireManager, async (req, res) => {
     const { id: _id, company_id: _cid, compliance: _c, status: _s, status_label: _sl, created_at: _ca, ...safeBody } = req.body;
     
     // Garante que não estamos tentando atualizar campos sensíveis ou inexistentes
+    const { company_id } = req.session;
     const { data, error } = await supabase.from('workers')
-      .update(safeBody).eq('id', req.params.id).select().single();
+      .update(safeBody)
+      .eq('id', req.params.id)
+      .eq('company_id', company_id)
+      .select()
+      .single();
     
     if (error) {
       console.error('Erro ao atualizar worker:', error);
@@ -208,7 +231,11 @@ router.delete('/:id', requireAuth, async (req, res) => {
   if (req.session.role !== 'admin')
     return res.status(403).json({ error: 'Somente administradores podem excluir trabalhadores.' });
   try {
-    const { error } = await supabase.from('workers').delete().eq('id', req.params.id);
+    const { company_id } = req.session;
+    const { error } = await supabase.from('workers')
+      .delete()
+      .eq('id', req.params.id)
+      .eq('company_id', company_id);
     if (error) throw error;
     res.json({ message: 'Trabalhador removido com sucesso.' });
   } catch (err) {

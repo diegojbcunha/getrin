@@ -28,7 +28,7 @@ router.get('/', requireAuth, requireManager, async (req, res) => {
 
     const { data: activities, error: actErr } = await supabase
       .from('worker_trainings')
-      .select('status, status_label, created_at, workers!inner(name, company_id), trainings(name,norm)')
+      .select('progress, status, status_label, done_at, created_at, workers!inner(name, company_id), trainings(name,norm)')
       .eq('workers.company_id', company_id)
       .order('created_at', { ascending: false }).limit(5);
     if (actErr) console.error('Erro ao buscar atividades:', actErr);
@@ -52,16 +52,24 @@ router.get('/', requireAuth, requireManager, async (req, res) => {
     const nonCompliant   = workers.filter(w => w.status === 'red').length;
     const avgCompliance  = total > 0
       ? Math.round(workers.reduce((acc, w) => acc + (w.compliance || 0), 0) / total) : 0;
+    const avgTrainingProgress = (activities || []).length > 0
+      ? Math.round((activities || []).reduce((acc, wt) => acc + (Number(wt.progress) || 0), 0) / activities.length) : 0;
+    const dashboardAlerts = (alerts || []).map(a => ({
+      ...a,
+      days: a.days_until_expiry,
+      count: a.count || 1,
+    }));
 
     res.json({
       metrics: { compliance: avgCompliance, workers: total, expiring: expiringCount,
-                 nonCompliant, expiringDays: days },
-      alerts,
+                 nonCompliant, expiringDays: days, trainingProgress: avgTrainingProgress },
+      alerts: dashboardAlerts,
       recentActivity: (activities || []).map(wt => ({
         name:        wt.workers?.name     || 'Desconhecido',
         training:    wt.trainings?.name   || 'Desconhecido',
         norm:        wt.trainings?.norm   || '—',
-        date:        wt.done ? wt.done : (wt.created_at ? new Date(wt.created_at).toLocaleDateString('pt-BR') : '—'),
+        date:        wt.done_at ? wt.done_at : (wt.created_at ? new Date(wt.created_at).toLocaleDateString('pt-BR') : '—'),
+        progress:    wt.progress || 0,
         status:      wt.status,
         statusLabel: wt.status_label,
       })),
