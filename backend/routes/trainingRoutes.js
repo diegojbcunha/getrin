@@ -7,6 +7,7 @@ const { requireAuth, requireManager } = require('../middlewares/auth');
 const { loadLocalDb, saveLocalDb } = require('../repositories/localRepository');
 const { ensureWorkerRecord, recalculateCompliance } = require('../repositories/supabaseRepository');
 const { calcExpiryDate, calcExpiryColor, parseExpiryDate } = require('../utils/helpers');
+const { normalizeMaterials } = require('../utils/materials');
 
 // --- Trainings Catalog ---
 
@@ -78,7 +79,7 @@ router.post('/', requireAuth, requireManager, async (req, res) => {
       assignment = {
         id: `local-assignment-${Date.now()}`,
         worker_email: worker.email, worker_id: worker.id,
-        training_id: training.id, progress: 0,
+        training_id: training.id, progress: 0, viewed_materials: [],
         done: '—', expires: '—', status: 'gray', status_label: 'Pendente',
       };
       db.assignments.push(assignment);
@@ -95,7 +96,11 @@ router.delete('/:id', requireAuth, async (req, res) => {
   if (req.session.role !== 'admin')
     return res.status(403).json({ error: 'Somente administradores podem excluir treinamentos.' });
   try {
-    const { error } = await supabase.from('trainings').delete().eq('id', req.params.id);
+    const { company_id } = req.session;
+    const { error } = await supabase.from('trainings')
+      .delete()
+      .eq('id', req.params.id)
+      .eq('company_id', company_id);
     if (error) throw error;
     res.json({ message: 'Treinamento removido com sucesso.' });
   } catch (err) {

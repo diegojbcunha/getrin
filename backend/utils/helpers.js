@@ -8,6 +8,11 @@ const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov'
  */
 function parseExpiryDate(str) {
   if (!str || str === '—') return null;
+  const iso = new Date(str);
+  if (!isNaN(iso.getTime())) {
+    iso.setHours(0, 0, 0, 0);
+    return iso;
+  }
   const parts = String(str).trim().split(' ');
   if (parts.length !== 2) return null;
   const m = MESES.indexOf(parts[0]);
