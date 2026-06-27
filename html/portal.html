@@ -153,6 +153,25 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-material-viewer">
+  <div class="modal-box modal-box-wide">
+    <div class="modal-header">
+      <span class="modal-title" id="material-viewer-title">Material do treinamento</span>
+      <i class="ti ti-x modal-close" onclick="closeMaterialViewer()"></i>
+    </div>
+    <div class="modal-body">
+      <div class="material-viewer-frame" id="material-viewer-frame"></div>
+      <div class="material-viewer-status" id="material-viewer-status"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeMaterialViewer()">Fechar</button>
+      <button class="btn btn-primary" id="material-complete-btn" onclick="completeCurrentMaterial()" disabled>
+        <i class="ti ti-check"></i>Concluir material
+      </button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/tutor.js"></script>
 <script src="/js/data.js"></script>
 <script src="/js/portal.js"></script>

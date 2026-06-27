@@ -5,6 +5,8 @@
 
 let _currentWorkerData = null;
 let _activePortalTab = 'trainings';
+let _materialViewer = null;
+let _materialTimer = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   if (!authGuard()) return;
@@ -296,7 +298,7 @@ function openTrainingDetail(assignmentId) {
           <div class="training-material-meta">${m.type === 'pdf' ? 'Documento PDF' : 'Video do YouTube'} ${viewed.has(String(m.id)) ? '- visualizado' : '- pendente'}</div>
         </div>
         <button class="btn btn-sm ${viewed.has(String(m.id)) ? '' : 'btn-primary'}" onclick="openTrainingMaterial('${training.id}', '${m.id}')">
-          <i class="ti ti-external-link"></i>Abrir
+          <i class="ti ${m.type === 'pdf' ? 'ti-file-text' : 'ti-player-play'}"></i>${m.type === 'pdf' ? 'Ler' : 'Assistir'}
         </button>
       </div>`).join('')
     : '<div class="portal-empty-state compact"><span>Nenhum material cadastrado para este treinamento.</span></div>';
@@ -346,12 +348,69 @@ async function openTrainingMaterial(assignmentId, materialId) {
     return;
   }
 
-  window.open(material.url, '_blank', 'noopener');
+  const requiredSeconds = Number(material.min_seconds) || (material.type === 'pdf' ? 20 : 30);
+  _materialViewer = {
+    assignmentId,
+    materialId,
+    material,
+    requiredSeconds,
+    watchedSeconds: 0,
+  };
+
+  document.getElementById('material-viewer-title').textContent = material.title || 'Material do treinamento';
+  document.getElementById('material-viewer-frame').innerHTML = `<iframe src="${getMaterialEmbedUrl(material)}" title="${material.title || 'Material'}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+  document.getElementById('modal-material-viewer')?.classList.add('open');
+  updateMaterialViewerStatus();
+
+  clearInterval(_materialTimer);
+  _materialTimer = setInterval(() => {
+    if (!_materialViewer || document.hidden) return;
+    _materialViewer.watchedSeconds += 1;
+    updateMaterialViewerStatus();
+  }, 1000);
+}
+
+function getMaterialEmbedUrl(material) {
+  const url = String(material.url || '');
+  if (material.type !== 'youtube') return url;
+
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{6,})/);
+  return match ? `https://www.youtube.com/embed/${match[1]}?rel=0` : url;
+}
+
+function updateMaterialViewerStatus() {
+  if (!_materialViewer) return;
+
+  const remaining = Math.max(0, _materialViewer.requiredSeconds - _materialViewer.watchedSeconds);
+  const btn = document.getElementById('material-complete-btn');
+  const status = document.getElementById('material-viewer-status');
+
+  if (btn) btn.disabled = remaining > 0;
+  if (status) {
+    status.textContent = remaining > 0
+      ? `Tempo minimo para concluir: ${remaining}s`
+      : 'Tempo minimo atingido. Voce ja pode concluir este material.';
+  }
+}
+
+function closeMaterialViewer() {
+  clearInterval(_materialTimer);
+  _materialTimer = null;
+  _materialViewer = null;
+  document.getElementById('material-viewer-frame').innerHTML = '';
+  document.getElementById('modal-material-viewer')?.classList.remove('open');
+}
+
+async function completeCurrentMaterial() {
+  if (!_materialViewer) return;
+
+  const { assignmentId, materialId, watchedSeconds } = _materialViewer;
 
   try {
     const res = await fetch(`${API_BASE}/worker-trainings/${assignmentId}/materials/${materialId}/viewed`, {
       method: 'POST',
-      headers: getAuthHeaders()
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ view_seconds: watchedSeconds })
     });
     const updated = await res.json();
     if (!res.ok) throw new Error(updated.error || 'Erro ao atualizar progresso.');
@@ -373,6 +432,7 @@ async function openTrainingMaterial(assignmentId, materialId) {
       openTrainingDetail(assignmentId);
     }
     setPortalTab(_activePortalTab);
+    closeMaterialViewer();
     showToast('Progresso atualizado.');
   } catch (err) {
     console.error(err);
@@ -387,6 +447,21 @@ function downloadCertificate(assignmentId) {
     return;
   }
 
+  fetch(`${API_BASE}/worker-trainings/${assignmentId}/certificate`, {
+    headers: getAuthHeaders()
+  })
+    .then(async res => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Certificado indisponivel.');
+      renderCertificateWindow(training, data);
+    })
+    .catch(err => {
+      console.error(err);
+      showToast(err.message || 'Nao foi possivel gerar o certificado.');
+    });
+}
+
+function renderCertificateWindow(training, certificate) {
   const win = window.open('', '_blank');
   if (!win) {
     showToast('Permita pop-ups para baixar o certificado.');
@@ -394,6 +469,7 @@ function downloadCertificate(assignmentId) {
   }
 
   const issuedAt = new Date().toLocaleDateString('pt-BR');
+  const verifyUrl = `${location.origin}/api/worker-trainings/certificates/verify/${certificate.code}`;
   win.document.write(`
     <html><head><title>Certificado - ${training.name}</title>
     <style>
@@ -405,11 +481,12 @@ function downloadCertificate(assignmentId) {
     <div class="cert">
       <h1>Certificado de Conclusao</h1>
       <p>Certificamos que</p>
-      <h2>${_currentWorkerData.name || 'Trabalhador'}</h2>
+      <h2>${certificate.worker_name || _currentWorkerData.name || 'Trabalhador'}</h2>
       <p>concluiu o treinamento <strong>${training.name}</strong>, referente a ${training.norm || 'norma aplicavel'}.</p>
-      <p>Conclusao: ${training.done_at ? formatDate(training.done_at) : issuedAt}</p>
-      <p>Valido ate: ${training.expires ? formatDate(training.expires) : '-'}</p>
-      <div class="meta">Emitido pelo Getrin em ${issuedAt}</div>
+      <p>Conclusao: ${certificate.issued_at ? formatDate(certificate.issued_at) : issuedAt}</p>
+      <p>Valido ate: ${certificate.expires_at ? formatDate(certificate.expires_at) : '-'}</p>
+      <p>Codigo de validacao: <strong>${certificate.code}</strong></p>
+      <div class="meta">Validacao: ${verifyUrl}<br>Emitido pelo Getrin em ${issuedAt}</div>
     </div>
     <script>window.print()</script>
     </body></html>`);

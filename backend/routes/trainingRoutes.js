@@ -37,13 +37,12 @@ router.post('/', requireAuth, requireManager, async (req, res) => {
     const company_id = sessionCompanyId;
 
     const { name, norm, hours, validity_months, mode, worker_email } = req.body;
-    const materials = normalizeMaterials(req.body.materials || []);
+    const materials = await normalizeMaterials(req.body.materials || []);
 
-    // validity_months pode legitimamente ser 0 (sem reciclagem) — não usar `||` aqui.
     const resolvedValidityMonths = Number.isFinite(Number(validity_months)) ? Number(validity_months) : 12;
 
     if (!name || !norm || !hours || !mode)
-      return res.status(400).json({ error: 'Campos obrigatórios: name, norm, hours, mode.' });
+      return res.status(400).json({ error: 'Campos obrigatorios: name, norm, hours, mode.' });
 
     let training;
     try {
@@ -114,12 +113,12 @@ router.put('/:id', requireAuth, requireManager, async (req, res) => {
     const { company_id } = req.session;
     const { id } = req.params;
     const { name, norm, hours, validity_months, mode } = req.body;
-    const materials = normalizeMaterials(req.body.materials || []);
+    const materials = await normalizeMaterials(req.body.materials || []);
 
     const resolvedValidityMonths = Number.isFinite(Number(validity_months)) ? Number(validity_months) : 12;
 
     if (!name || !norm || !hours || !mode)
-      return res.status(400).json({ error: 'Campos obrigatórios: name, norm, hours, mode.' });
+      return res.status(400).json({ error: 'Campos obrigatorios: name, norm, hours, mode.' });
 
     // Verifica se o treinamento pertence à empresa logada ou é global
     const { data: existing, error: checkError } = await supabase
@@ -132,18 +131,28 @@ router.put('/:id', requireAuth, requireManager, async (req, res) => {
     if (!existing) return res.status(404).json({ error: 'Treinamento não encontrado.' });
     
     // Se o treinamento tem company_id, verifica se pertence à empresa logada
+    if (!existing.company_id && req.session.role !== 'admin') {
+      return res.status(403).json({ error: 'Treinamentos globais so podem ser editados por administradores.' });
+    }
+
     if (existing.company_id && existing.company_id !== company_id) {
       return res.status(403).json({ error: 'Você não tem permissão para editar este treinamento.' });
     }
 
-    const { data, error } = await supabase
+    let updateQuery = supabase
       .from('trainings')
       .update({
         name, norm, hours,
         validity_months: resolvedValidityMonths,
         mode, materials
       })
-      .eq('id', id)
+      .eq('id', id);
+
+    if (existing.company_id) {
+      updateQuery = updateQuery.eq('company_id', company_id);
+    }
+
+    const { data, error } = await updateQuery
       .select()
       .single();
     

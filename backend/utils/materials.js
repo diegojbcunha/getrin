@@ -3,9 +3,11 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const supabase = require('../supabaseClient');
 
 const UPLOAD_ROOT = path.join(__dirname, '..', 'uploads', 'materials');
 const MAX_PDF_BYTES = 12 * 1024 * 1024;
+const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'training-materials';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -36,7 +38,7 @@ function ensureUploadDir() {
   fs.mkdirSync(UPLOAD_ROOT, { recursive: true });
 }
 
-function savePdfMaterial(material) {
+async function savePdfMaterial(material) {
   const raw = material.pdf_data || material.fileData || '';
   if (!raw) return material.url || '';
 
@@ -48,46 +50,75 @@ function savePdfMaterial(material) {
   if (buffer.length > MAX_PDF_BYTES) throw new Error('PDF maior que 12 MB.');
   if (buffer.slice(0, 4).toString() !== '%PDF') throw new Error('O arquivo enviado precisa ser um PDF.');
 
-  ensureUploadDir();
-  // Usa o id (já resolvido para uuid) como nome de arquivo — estável e único.
   const filename = `${safeId(material.id) || crypto.randomUUID()}.pdf`;
+  const storagePath = `materials/${filename}`;
+
+  if (process.env.SUPABASE_URL && !process.env.SUPABASE_URL.includes('sua-url')) {
+    const { error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(storagePath, buffer, {
+        contentType: 'application/pdf',
+        upsert: true,
+      });
+
+    if (!error) {
+      const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(storagePath);
+      return data?.publicUrl || material.url || '';
+    }
+  }
+
+  ensureUploadDir();
   fs.writeFileSync(path.join(UPLOAD_ROOT, filename), buffer);
   return `/uploads/materials/${filename}`;
 }
 
-function normalizeMaterials(input = []) {
+async function normalizeMaterials(input = []) {
   const source = Array.isArray(input) ? input : [];
 
-  return source
-    .map((item, index) => {
+  const normalized = [];
+
+  for (const [index, item] of source.entries()) {
       const type = item.type === 'pdf' ? 'pdf' : 'youtube';
       const id = resolveMaterialId(item.id);
       const title = String(item.title || '').trim() || `Material ${index + 1}`;
       let url = String(item.url || '').trim();
 
       if (type === 'pdf') {
-        url = savePdfMaterial({ ...item, id });
+        url = await savePdfMaterial({ ...item, id });
       }
 
-      if (!url) return null;
+      if (!url) continue;
 
-      return {
+      normalized.push({
         id,
         type,
         title,
         url,
         order: Number.isFinite(Number(item.order)) ? Number(item.order) : index,
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.order - b.order);
+        min_seconds: type === 'pdf' ? 20 : 30,
+      });
+  }
+
+  return normalized.sort((a, b) => a.order - b.order);
 }
 
 function parseMaterials(value) {
-  if (Array.isArray(value)) return normalizeMaterials(value);
+  const normalizeStored = source => (Array.isArray(source) ? source : [])
+    .map((item, index) => ({
+      id: UUID_RE.test(String(item.id || '')) ? String(item.id).toLowerCase() : resolveMaterialId(item.id),
+      type: item.type === 'pdf' ? 'pdf' : 'youtube',
+      title: String(item.title || '').trim() || `Material ${index + 1}`,
+      url: String(item.url || '').trim(),
+      order: Number.isFinite(Number(item.order)) ? Number(item.order) : index,
+      min_seconds: Number(item.min_seconds) || (item.type === 'pdf' ? 20 : 30),
+    }))
+    .filter(item => item.url)
+    .sort((a, b) => a.order - b.order);
+
+  if (Array.isArray(value)) return normalizeStored(value);
   if (!value) return [];
   try {
-    return normalizeMaterials(JSON.parse(value));
+    return normalizeStored(JSON.parse(value));
   } catch (_) {
     return [];
   }
@@ -104,6 +135,17 @@ function parseViewedMaterials(value) {
   }
 }
 
+function parseMaterialProgress(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
 function calculateMaterialProgress(materials = [], viewedMaterials = []) {
   const total = materials.length;
   if (total === 0) return 0;
@@ -117,5 +159,6 @@ module.exports = {
   normalizeMaterials,
   parseMaterials,
   parseViewedMaterials,
+  parseMaterialProgress,
   calculateMaterialProgress,
 };
