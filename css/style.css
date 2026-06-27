@@ -516,10 +516,16 @@ td.td-mono    { font-family: var(--mono); font-size: 11px; }
 
 /* ── RESPONSIVE ─────────────────────────────────────────────── */
 @media (max-width: 900px) {
+  body { overflow: hidden; }
+  .app { height: 100dvh; }
+  .main { width: 100%; }
   .metrics-row { grid-template-columns: repeat(2, 1fr); }
   .two-col     { grid-template-columns: 1fr; }
 
   .topbar {
+    height: auto;
+    min-height: var(--topbar-h);
+    padding: 10px 16px;
     flex-wrap: wrap;
     gap: 12px;
   }
@@ -551,6 +557,40 @@ td.td-mono    { font-family: var(--mono); font-size: 11px; }
     max-width: 100%;
   }
 
+  .filter-input,
+  .filter-select,
+  .filters-count {
+    width: 100%;
+    min-width: 0;
+    margin-left: 0;
+  }
+
+  .panel {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    min-width: 760px;
+  }
+
+  .modal-overlay {
+    padding: 12px;
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+
+  .modal-box {
+    width: 100%;
+    max-width: 100%;
+    margin: 20px 0;
+  }
+
+  .modal-body {
+    max-height: calc(100dvh - 190px);
+    overflow-y: auto;
+  }
+
   .modal-footer {
     flex-direction: column-reverse;
     align-items: stretch;
@@ -574,6 +614,20 @@ td.td-mono    { font-family: var(--mono); font-size: 11px; }
   .topbar { padding: 0 12px; }
   .content-area { padding: 14px 12px; }
   .sidebar-install-box { padding: 10px 12px; font-size: 13px; }
+  .metrics-row { grid-template-columns: 1fr; }
+  .panel-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .btn {
+    min-height: 36px;
+  }
+  .toast {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+  }
 }
 
 /* ── RESPONSIVE / MOBILE ADAPTATIONS ────────────────────────── */
