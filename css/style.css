@@ -679,19 +679,48 @@ td.td-mono    { font-family: var(--mono); font-size: 11px; }
 
 .materials-editor {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 10px;
 }
 
 .material-row {
   display: grid;
-  grid-template-columns: 110px minmax(140px, 1fr) minmax(180px, 1.4fr) auto auto;
+  grid-template-columns: 100px 1fr auto;
+  grid-template-areas:
+    "type title remove"
+    "url  url   url";
   gap: 8px;
   align-items: center;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  min-width: 0;
 }
 
+.material-row .material-type   { grid-area: type;   min-width: 0; }
+.material-row .material-title  { grid-area: title;  min-width: 0; }
+.material-row .btn-icon        { grid-area: remove; }
+.material-row .material-url    { grid-area: url;     min-width: 0; }
+
 .material-row .material-file {
-  min-width: 160px;
+  grid-area: url;
+  min-width: 0;
+  width: 100%;
+  margin-top: 6px;
+}
+
+/* Quando o tipo é PDF, a URL e o file input ficam um sobre o outro,
+   então empilha verticalmente também dentro da área "url". */
+.material-row[data-type="pdf"] {
+  grid-template-areas:
+    "type title remove"
+    "url  url   url"
+    "file file  file";
+}
+.material-row[data-type="pdf"] .material-file {
+  grid-area: file;
+  margin-top: 0;
 }
 
 .portal-material-actions {
@@ -708,6 +737,6 @@ td.td-mono    { font-family: var(--mono); font-size: 11px; }
 
 @media (max-width: 900px) {
   .material-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: 90px 1fr auto;
   }
 }

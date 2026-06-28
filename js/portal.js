@@ -405,6 +405,13 @@ async function completeCurrentMaterial() {
   if (!_materialViewer) return;
 
   const { assignmentId, materialId, watchedSeconds } = _materialViewer;
+  const trainings = _currentWorkerData?.trainings || [];
+  const training = trainings.find(t => String(t.id) === String(assignmentId));
+
+  if (!training) {
+    showToast('Treinamento nao encontrado.');
+    return;
+  }
 
   try {
     const res = await fetch(`${API_BASE}/worker-trainings/${assignmentId}/materials/${materialId}/viewed`, {

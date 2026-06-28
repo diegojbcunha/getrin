@@ -32,13 +32,13 @@ function renderTrainings(list) {
 
   tbody.innerHTML = list.map(t => {
     const materials = Array.isArray(t.materials) ? t.materials : [];
+    const validityLabel = Number.isFinite(Number(t.validity_months)) ? `${t.validity_months} meses` : '—';
     return `
     <tr>
       <td class="td-primary">${t.name}</td>
       <td>${nrTag(t.norm)}</td>
       <td class="td-mono" style="text-align:center;">${t.hours}</td>
-      <td class="td-mono">${t.validity}</td>
-      <td style="color:var(--text-3);font-size:11.5px;">${t.roles || ''}</td>
+      <td class="td-mono">${validityLabel}</td>
       <td>${badge('blue', t.mode)}</td>
       <td>${badge(t.status, t.status_label || t.statusLabel || 'Ativo')}</td>
       <td style="text-align:center;">
@@ -55,7 +55,7 @@ function renderTrainings(list) {
 function openEditTrainingModal(trainingId) {
   const training = trainingsData.find(t => String(t.id) === String(trainingId));
   if (!training) return;
-  const { id, name, norm, hours, validity, mode, roles, materials = [] } = training;
+  const { id, name, norm, hours, validity_months, mode, materials = [] } = training;
   const modal = document.getElementById('modal-training');
   const title = document.getElementById('modal-training-title');
   
@@ -66,9 +66,8 @@ function openEditTrainingModal(trainingId) {
   document.getElementById('training-name').value = name;
   document.getElementById('training-norm').value = norm;
   document.getElementById('training-hours').value = hours;
-  document.getElementById('training-validity').value = validity;
+  document.getElementById('training-validity-months').value = Number.isFinite(Number(validity_months)) ? validity_months : '';
   document.getElementById('training-mode').value = mode;
-  document.getElementById('training-roles').value = roles;
   document.getElementById('training-worker-email').value = '';
   const list = document.getElementById('training-materials-list');
   if (list) {
@@ -90,8 +89,7 @@ function filterTrainings(query) {
   const q = query.toLowerCase();
   const filtered = trainingsData.filter(t =>
     t.name.toLowerCase().includes(q)  ||
-    t.norm.toLowerCase().includes(q)  ||
-    (t.roles && t.roles.toLowerCase().includes(q))
+    t.norm.toLowerCase().includes(q)
   );
   renderTrainings(filtered);
 }

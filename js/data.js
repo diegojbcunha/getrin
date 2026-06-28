@@ -445,18 +445,14 @@ function injectSharedHTML() {
               <input class="form-input" id="training-hours" placeholder="Ex: 40h" />
             </div>
             <div class="form-field">
-              <label class="form-label">Validade</label>
-              <select class="form-select" id="training-validity"><option>6 meses</option><option>1 ano</option><option>2 anos</option></select>
+              <label class="form-label">Validade (meses)</label>
+              <input class="form-input" id="training-validity-months" type="number" min="0" step="1" placeholder="Ex: 12" />
             </div>
           </div>
           <div class="form-grid-2">
             <div class="form-field">
               <label class="form-label">Modalidade</label>
               <select class="form-select" id="training-mode"><option>Presencial</option><option>EAD</option><option>Híbrido</option></select>
-            </div>
-            <div class="form-field">
-              <label class="form-label">Funções designadas</label>
-              <input class="form-input" id="training-roles" placeholder="Ex: Eletricista, Manutenção" />
             </div>
           </div>
           <div class="form-field">
@@ -590,15 +586,21 @@ async function submitTrainingModal() {
   const name = document.getElementById('training-name')?.value.trim() || '';
   const norm = document.getElementById('training-norm')?.value || '';
   const hours = document.getElementById('training-hours')?.value.trim() || '';
-  const validity = document.getElementById('training-validity')?.value || '';
+  const validityMonthsRaw = document.getElementById('training-validity-months')?.value.trim() || '';
   const mode = document.getElementById('training-mode')?.value || '';
-  const roles = document.getElementById('training-roles')?.value.trim() || '';
   const worker_email = document.getElementById('training-worker-email')?.value.trim() || '';
   const company_id = document.getElementById('training-company')?.value || '';
   const trainingId = document.getElementById('modal-training')?.dataset.trainingId || null;
 
-  if (!name || !norm || !hours || !validity || !mode) {
+  if (!name || !norm || !hours || validityMonthsRaw === '' || !mode) {
     showToast('Preencha os campos obrigatórios do treinamento.');
+    if (btn) btn.dataset.submitting = 'false';
+    return;
+  }
+
+  const validity_months = Number(validityMonthsRaw);
+  if (!Number.isFinite(validity_months) || validity_months < 0) {
+    showToast('Informe um número válido de meses para a validade.');
     if (btn) btn.dataset.submitting = 'false';
     return;
   }
@@ -607,7 +609,7 @@ async function submitTrainingModal() {
     const method = trainingId ? 'PUT' : 'POST';
     const url = trainingId ? `${API_BASE}/trainings/${trainingId}` : `${API_BASE}/trainings`;
     const materials = await collectTrainingMaterials();
-    const body = { name, norm, hours, validity, roles, mode, worker_email, materials };
+    const body = { name, norm, hours, validity_months, mode, worker_email, materials };
     if (!trainingId && company_id) body.company_id = company_id;
 
     const res = await fetch(url, {
@@ -648,7 +650,7 @@ function resetTrainingModal() {
   document.getElementById('btn-submit-training').textContent = 'Criar treinamento';
   document.getElementById('training-name').value = '';
   document.getElementById('training-hours').value = '';
-  document.getElementById('training-roles').value = '';
+  document.getElementById('training-validity-months').value = '';
   document.getElementById('training-worker-email').value = '';
   const materialsList = document.getElementById('training-materials-list');
   if (materialsList) {
@@ -657,7 +659,6 @@ function resetTrainingModal() {
   }
   document.getElementById('training-company').selectedIndex = 0;
   document.getElementById('training-norm').selectedIndex = 0;
-  document.getElementById('training-validity').selectedIndex = 0;
   document.getElementById('training-mode').selectedIndex = 0;
   
   // Mostra o campo de empresa novamente
