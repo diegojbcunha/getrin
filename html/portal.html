@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Getrin — Portal do Trabalhador</title>
+  <title>Getrin - Portal do Trabalhador</title>
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0f172a" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -16,34 +16,30 @@
 <body>
 
 <div class="app">
-
   <div id="sidebar-mount"></div>
 
   <div class="main">
-
     <div class="topbar">
       <div class="topbar-left">
         <span class="topbar-title">Meus treinamentos</span>
       </div>
       <div class="topbar-right">
         <button class="btn" onclick="openPortalSettings()">
-          <i class="ti ti-settings"></i>Configurações
+          <i class="ti ti-settings"></i>Configuracoes
         </button>
-        <button class="btn" onclick="showToast('Certificados disponíveis.')">
+        <button class="btn" onclick="setPortalTab('certificates')">
           <i class="ti ti-certificate"></i>Meus certificados
         </button>
       </div>
     </div>
 
     <div class="content-area">
-      
-      <!-- Seção de Configurações (Escondida por padrão) -->
       <div id="portal-settings-section" style="display: none; margin-bottom: 24px;">
-        <div class="section-div">Minhas Configurações</div>
+        <div class="section-div">Minhas configuracoes</div>
         <div class="panel" style="padding: 20px;">
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+          <div class="portal-settings-grid">
             <div class="form-field">
-              <label class="form-label">Nome Completo</label>
+              <label class="form-label">Nome completo</label>
               <input type="text" id="setting-name" class="form-input" placeholder="Seu nome" />
             </div>
             <div class="form-field">
@@ -55,18 +51,17 @@
               <input type="text" id="setting-phone" class="form-input" placeholder="(00) 00000-0000" />
             </div>
             <div class="form-field">
-              <label class="form-label">E-mail (Apenas leitura)</label>
+              <label class="form-label">E-mail</label>
               <input type="text" id="setting-email" class="form-input" readonly style="background: var(--surface-2); cursor: not-allowed;" />
             </div>
           </div>
-          <div style="margin-top: 20px; display: flex; gap: 12px; justify-content: flex-end;">
+          <div class="portal-settings-actions">
             <button class="btn" onclick="closePortalSettings()">Cancelar</button>
-            <button class="btn btn-primary" onclick="savePortalSettings()">Salvar Alterações</button>
+            <button class="btn btn-primary" onclick="savePortalSettings()">Salvar alteracoes</button>
           </div>
         </div>
       </div>
 
-      <!-- Banner de conformidade -->
       <div class="portal-banner">
         <div class="portal-pct-block">
           <div class="portal-big-pct" id="portal-compliance">--%</div>
@@ -78,42 +73,101 @@
         <span id="portal-badge"></span>
       </div>
 
-      <!-- Pendentes -->
-      <div class="section-div">Pendentes e em andamento</div>
-      <div class="panel">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:28%">Treinamento</th>
-              <th style="width:9%">Norma</th>
-              <th style="width:20%">Progresso</th>
-              <th style="width:18%">Prazo / Vencimento</th>
-              <th style="width:13%">Status</th>
-              <th style="width:12%">Ação</th>
-            </tr>
-          </thead>
-          <tbody id="pending-tbody"></tbody>
-        </table>
+      <div class="portal-tabs" role="tablist" aria-label="Portal do trabalhador">
+        <button class="portal-tab active" id="tab-trainings" onclick="setPortalTab('trainings')" type="button">
+          <i class="ti ti-books"></i>Treinamentos
+        </button>
+        <button class="portal-tab" id="tab-certificates" onclick="setPortalTab('certificates')" type="button">
+          <i class="ti ti-certificate"></i>Certificados
+        </button>
+        <button class="portal-tab" id="tab-notifications" onclick="setPortalTab('notifications')" type="button">
+          <i class="ti ti-bell"></i>Notificacoes
+        </button>
       </div>
 
-      <!-- Concluídos -->
-      <div class="section-div">Concluídos e válidos</div>
-      <div class="panel">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:32%">Treinamento</th>
-              <th style="width:10%">Norma</th>
-              <th style="width:16%">Conclusão</th>
-              <th style="width:18%">Válido até</th>
-              <th style="width:12%">Status</th>
-              <th style="width:12%">Certificado</th>
-            </tr>
-          </thead>
-          <tbody id="completed-tbody"></tbody>
-        </table>
+      <div class="portal-tab-panel active" id="panel-trainings">
+        <div class="section-div">Pendentes e em andamento</div>
+        <div class="panel">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:28%">Treinamento</th>
+                <th style="width:9%">Norma</th>
+                <th style="width:20%">Progresso</th>
+                <th style="width:18%">Prazo / Vencimento</th>
+                <th style="width:13%">Status</th>
+                <th style="width:12%">Acao</th>
+              </tr>
+            </thead>
+            <tbody id="pending-tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="section-div">Concluidos e validos</div>
+        <div class="panel">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:32%">Treinamento</th>
+                <th style="width:10%">Norma</th>
+                <th style="width:16%">Conclusao</th>
+                <th style="width:18%">Valido ate</th>
+                <th style="width:12%">Status</th>
+                <th style="width:12%">Detalhes</th>
+              </tr>
+            </thead>
+            <tbody id="completed-tbody"></tbody>
+          </table>
+        </div>
       </div>
 
+      <div class="portal-tab-panel" id="panel-certificates">
+        <div class="section-div">Meus certificados</div>
+        <div class="panel">
+          <div class="portal-card-list" id="certificates-list"></div>
+        </div>
+      </div>
+
+      <div class="portal-tab-panel" id="panel-notifications">
+        <div class="section-div">Notificacoes</div>
+        <div class="panel">
+          <div class="portal-card-list" id="notifications-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-training-detail">
+  <div class="modal-box modal-box-wide">
+    <div class="modal-header">
+      <span class="modal-title" id="training-detail-title">Detalhes do treinamento</span>
+      <i class="ti ti-x modal-close" onclick="closeTrainingDetail()"></i>
+    </div>
+    <div class="modal-body">
+      <div id="training-detail-body"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeTrainingDetail()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-material-viewer">
+  <div class="modal-box modal-box-wide">
+    <div class="modal-header">
+      <span class="modal-title" id="material-viewer-title">Material do treinamento</span>
+      <i class="ti ti-x modal-close" onclick="closeMaterialViewer()"></i>
+    </div>
+    <div class="modal-body">
+      <div class="material-viewer-frame" id="material-viewer-frame"></div>
+      <div class="material-viewer-status" id="material-viewer-status"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeMaterialViewer()">Fechar</button>
+      <button class="btn btn-primary" id="material-complete-btn" onclick="completeCurrentMaterial()" disabled>
+        <i class="ti ti-check"></i>Concluir material
+      </button>
     </div>
   </div>
 </div>

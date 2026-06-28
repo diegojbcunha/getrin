@@ -7,7 +7,7 @@ const { requireAuth, requireManager } = require('../middlewares/auth');
 const { ensureWorkerRecord } = require('../repositories/supabaseRepository');
 const { loadLocalDb } = require('../repositories/localRepository');
 const { calcExpiryColor } = require('../utils/helpers');
-const { parseMaterials, parseViewedMaterials, calculateMaterialProgress } = require('../utils/materials');
+const { parseMaterials, parseViewedMaterials, parseMaterialProgress, calculateMaterialProgress } = require('../utils/materials');
 
 // Listar todos (gestor/admin da empresa logada)
 router.get('/', requireAuth, requireManager, async (req, res) => {
@@ -90,7 +90,7 @@ router.get('/me', requireAuth, async (req, res) => {
       });
     } else {
       const { data, error } = await supabase.from('worker_trainings')
-        .select('id, progress, done_at, expires, status, status_label, viewed_materials, trainings(id,name,norm,materials)')
+        .select('id, progress, done_at, expires, status, status_label, viewed_materials, material_progress, trainings(id,name,norm,materials)')
         .eq('worker_id', worker.id);
       if (error) throw error;
 
@@ -105,6 +105,7 @@ router.get('/me', requireAuth, async (req, res) => {
         expires_color: calcExpiryColor(t.expires),
         materials: parseMaterials(t.trainings?.materials || []),
         viewed_materials: parseViewedMaterials(t.viewed_materials),
+        material_progress_details: parseMaterialProgress(t.material_progress),
         material_progress: calculateMaterialProgress(parseMaterials(t.trainings?.materials || []), t.viewed_materials),
         status: t.status, 
         status_label: t.status_label,
@@ -151,7 +152,7 @@ router.get('/:id', requireAuth, requireManager, async (req, res) => {
     if (wErr) throw wErr;
 
     const { data: trainings, error: tErr } = await supabase.from('worker_trainings')
-      .select('id, progress, done_at, expires, status, status_label, viewed_materials, trainings(id,name,norm,materials)')
+        .select('id, progress, done_at, expires, status, status_label, viewed_materials, material_progress, trainings(id,name,norm,materials)')
       .eq('worker_id', req.params.id);
     if (tErr) throw tErr;
 
@@ -164,6 +165,7 @@ router.get('/:id', requireAuth, requireManager, async (req, res) => {
         expires_color: calcExpiryColor(t.expires),
         materials: parseMaterials(t.trainings?.materials || []),
         viewed_materials: parseViewedMaterials(t.viewed_materials),
+        material_progress_details: parseMaterialProgress(t.material_progress),
         material_progress: calculateMaterialProgress(parseMaterials(t.trainings?.materials || []), t.viewed_materials),
         status: t.status, status_label: t.status_label,
       })),

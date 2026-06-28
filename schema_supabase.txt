@@ -5,6 +5,15 @@
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Storage persistente para PDFs de treinamento.
+-- Se preferir, crie pelo painel do Supabase um bucket publico chamado "training-materials".
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('training-materials', 'training-materials', true, 12582912, ARRAY['application/pdf'])
+ON CONFLICT (id) DO UPDATE
+SET public = EXCLUDED.public,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
+
 -- 0. TABELA: EMPRESAS (companies)
 CREATE TABLE IF NOT EXISTS public.companies (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -69,6 +78,7 @@ CREATE TABLE IF NOT EXISTS public.worker_trainings (
     training_id UUID NOT NULL REFERENCES public.trainings(id) ON DELETE CASCADE,
     progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
     viewed_materials JSONB DEFAULT '[]'::jsonb,
+    material_progress JSONB DEFAULT '{}'::jsonb,
     done_at DATE,
     expires DATE,
     status VARCHAR(50) DEFAULT 'gray',
@@ -77,7 +87,25 @@ CREATE TABLE IF NOT EXISTS public.worker_trainings (
     CONSTRAINT unique_worker_training UNIQUE (worker_id, training_id)
 );
 
--- 5. TABELA: ALERTAS (alerts)
+-- 5. TABELA: CERTIFICADOS (certificates)
+CREATE TABLE IF NOT EXISTS public.certificates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assignment_id UUID NOT NULL UNIQUE REFERENCES public.worker_trainings(id) ON DELETE CASCADE,
+    worker_id UUID NOT NULL REFERENCES public.workers(id) ON DELETE CASCADE,
+    training_id UUID NOT NULL REFERENCES public.trainings(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+    code VARCHAR(80) NOT NULL UNIQUE,
+    worker_name VARCHAR(255) NOT NULL,
+    worker_email VARCHAR(255),
+    training_name VARCHAR(255) NOT NULL,
+    norm VARCHAR(50),
+    hours INTEGER,
+    issued_at DATE NOT NULL DEFAULT CURRENT_DATE,
+    expires_at DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. TABELA: ALERTAS (alerts)
 CREATE TABLE IF NOT EXISTS public.alerts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
@@ -88,7 +116,7 @@ CREATE TABLE IF NOT EXISTS public.alerts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 6. TABELA: LOGS DE AUDITORIA (audit_logs)
+-- 7. TABELA: LOGS DE AUDITORIA (audit_logs)
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id UUID REFERENCES public.companies(id),
@@ -108,6 +136,9 @@ CREATE INDEX IF NOT EXISTS idx_workers_company_id ON public.workers(company_id);
 CREATE INDEX IF NOT EXISTS idx_trainings_company_id ON public.trainings(company_id);
 CREATE INDEX IF NOT EXISTS idx_worker_trainings_worker_id ON public.worker_trainings(worker_id);
 CREATE INDEX IF NOT EXISTS idx_worker_trainings_training_id ON public.worker_trainings(training_id);
+CREATE INDEX IF NOT EXISTS idx_certificates_assignment_id ON public.certificates(assignment_id);
+CREATE INDEX IF NOT EXISTS idx_certificates_code ON public.certificates(code);
+CREATE INDEX IF NOT EXISTS idx_certificates_company_id ON public.certificates(company_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_company_id ON public.alerts(company_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_days_until_expiry ON public.alerts(days_until_expiry);
 
@@ -117,6 +148,26 @@ ALTER TABLE public.trainings
 
 ALTER TABLE public.worker_trainings
     ADD COLUMN IF NOT EXISTS viewed_materials JSONB DEFAULT '[]'::jsonb;
+
+ALTER TABLE public.worker_trainings
+    ADD COLUMN IF NOT EXISTS material_progress JSONB DEFAULT '{}'::jsonb;
+
+CREATE TABLE IF NOT EXISTS public.certificates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assignment_id UUID NOT NULL UNIQUE REFERENCES public.worker_trainings(id) ON DELETE CASCADE,
+    worker_id UUID NOT NULL REFERENCES public.workers(id) ON DELETE CASCADE,
+    training_id UUID NOT NULL REFERENCES public.trainings(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+    code VARCHAR(80) NOT NULL UNIQUE,
+    worker_name VARCHAR(255) NOT NULL,
+    worker_email VARCHAR(255),
+    training_name VARCHAR(255) NOT NULL,
+    norm VARCHAR(50),
+    hours INTEGER,
+    issued_at DATE NOT NULL DEFAULT CURRENT_DATE,
+    expires_at DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
 DO $$
 BEGIN
@@ -193,6 +244,7 @@ ALTER TABLE public.users_profile ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trainings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.worker_trainings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.alerts ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
@@ -354,6 +406,30 @@ CREATE POLICY worker_trainings_delete_policy ON public.worker_trainings
 -- ============================================================
 -- POLÍTICAS PARA ALERTS
 -- ============================================================
+
+-- ============================================================
+-- POLITICAS PARA CERTIFICATES
+-- ============================================================
+
+CREATE POLICY certificates_select_policy ON public.certificates
+    FOR SELECT
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+        OR worker_id = auth.uid()
+    );
+
+CREATE POLICY certificates_insert_policy ON public.certificates
+    FOR INSERT
+    WITH CHECK (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+        OR worker_id = auth.uid()
+    );
 
 -- Users podem ver alertas da sua empresa
 CREATE POLICY alerts_select_policy ON public.alerts

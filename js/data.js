@@ -282,9 +282,9 @@ function renderSidebar(activePage, workerMode = false) {
       </div>
       <div class="sidebar-section">
         <div class="sidebar-section-label">Minha área</div>
-        <a href="/html/portal.html"   class="nav-item ${activePage==='portal'?'active':''}"><i class="ti ti-layout-dashboard"></i>Meus treinamentos</a>
-        <a href="#" class="nav-item" onclick="showToast('Certificados em breve.');return false;"><i class="ti ti-certificate"></i>Certificados</a>
-        <a href="#" class="nav-item" onclick="showToast('Sem novas notificações.');return false;"><i class="ti ti-bell"></i>Notificações</a>
+        <a href="/html/portal.html#trainings" class="nav-item ${activePage==='portal'?'active':''}"><i class="ti ti-layout-dashboard"></i>Meus treinamentos</a>
+        <a href="/html/portal.html#certificates" class="nav-item"><i class="ti ti-certificate"></i>Certificados</a>
+        <a href="/html/portal.html#notifications" class="nav-item"><i class="ti ti-bell"></i>Notificações</a>
       </div>
       <div class="sidebar-footer">
         ${installBtn}
