@@ -117,15 +117,6 @@ RLS ativo em todas as tabelas — dados de uma empresa são completamente isolad
 # 1. Clone o repositório
 git clone https://github.com/diegojbcunha/getrin.git
 cd getrin
-
-# 2. Configure o Supabase
-# Execute o conteúdo de schema_supabase.txt no SQL Editor do Supabase
-
-# 3. Configure as credenciais em js/supabase.js
-const SUPABASE_URL = 'https://SEU_PROJETO.supabase.co'
-const SUPABASE_ANON_KEY = 'sua_anon_key'
-
-# 4. Abra o index.html no navegador ou use Live Server
 ```
 
 ---
