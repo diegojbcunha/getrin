@@ -1,9 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Getrin — Perfil do Trabalhador</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
@@ -27,10 +29,10 @@
         <span class="topbar-title" id="topbar-worker-name">—</span>
       </div>
       <div class="topbar-right">
-        <button class="btn" onclick="showToast('Editando perfil...')">
+        <button class="btn" onclick="openEditModal()">
           <i class="ti ti-edit"></i>Editar
         </button>
-        <button class="btn btn-primary" onclick="openModal('modal-assign')">
+        <button class="btn btn-primary" onclick="openAssignModal()">
           <i class="ti ti-plus"></i>Atribuir treinamento
         </button>
       </div>
@@ -108,6 +110,111 @@
     </div><!-- /content-area -->
   </div><!-- /main -->
 </div><!-- /app -->
+
+<!-- MODAL: Editar Perfil -->
+<div class="modal-overlay" id="modal-edit-profile">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Editar perfil do trabalhador</span>
+      <i class="ti ti-x modal-close" onclick="closeModal('modal-edit-profile')"></i>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label class="form-label">Nome completo</label>
+        <input id="edit-worker-name" class="form-input" />
+      </div>
+      <div class="form-grid-2">
+        <div class="form-field">
+          <label class="form-label">Matrícula</label>
+          <input id="edit-worker-matricula" class="form-input" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">Função / Cargo</label>
+          <input id="edit-worker-role" class="form-input" />
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Setor</label>
+        <select id="edit-worker-sector" class="form-select">
+          <option value="Infraestrutura">Infraestrutura</option>
+          <option value="Produção">Produção</option>
+          <option value="Manutenção">Manutenção</option>
+          <option value="Logística">Logística</option>
+          <option value="Qualidade">Qualidade</option>
+          <option value="Administrativo">Administrativo</option>
+        </select>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-field">
+          <label class="form-label">Gestor responsável</label>
+          <input id="edit-worker-manager" class="form-input" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">Data de admissão</label>
+          <input id="edit-worker-admission" class="form-input" type="date" />
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-field">
+          <label class="form-label">E-mail corporativo</label>
+          <input id="edit-worker-email" class="form-input" type="email" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">Telefone</label>
+          <input id="edit-worker-phone" class="form-input" type="tel" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-edit-profile')">Cancelar</button>
+      <button class="btn btn-primary" onclick="submitEditProfile()">Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Atribuir Treinamento (Específico do Perfil) -->
+<div class="modal-overlay" id="modal-assign-profile">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Atribuir novo treinamento</span>
+      <i class="ti ti-x modal-close" onclick="closeModal('modal-assign-profile')"></i>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label class="form-label">Treinamento disponível</label>
+        <select id="assign-prof-training-id" class="form-select" onchange="updateAssignFields()">
+          <option value="">Carregando treinamentos...</option>
+        </select>
+      </div>
+      
+      <div class="form-grid-2">
+        <div class="form-field">
+          <label class="form-label">Norma</label>
+          <input id="assign-prof-norm" class="form-input" readonly disabled style="background:var(--bg-2); opacity:0.8;" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">Prazo de Conclusão</label>
+          <input id="assign-prof-deadline" class="form-input" type="date" />
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-field">
+          <label class="form-label">Carga Horária</label>
+          <input id="assign-prof-hours" class="form-input" readonly disabled style="background:var(--bg-2); opacity:0.8;" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">Status Inicial</label>
+          <input class="form-input" value="Pendente (0%)" readonly disabled style="background:var(--bg-2); opacity:0.8;" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-assign-profile')">Cancelar</button>
+      <button class="btn btn-primary" onclick="submitAssignTraining()">Atribuir treinamento</button>
+    </div>
+  </div>
+</div>
 
 <script src="/js/data.js"></script>
 <script src="/js/profile.js"></script>

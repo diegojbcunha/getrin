@@ -186,6 +186,7 @@ async function submitSignup() {
   const email = document.getElementById('signup-email').value.trim();
   const password = document.getElementById('signup-password').value;
   const role = document.getElementById('signup-role').value;
+  const company_id = document.getElementById('signup-company-id').value.trim();
   const inviteCode = document.getElementById('signup-invite-code').value.trim();
 
   if ((role === 'manager' || role === 'admin') && !inviteCode) {
@@ -209,7 +210,7 @@ async function submitSignup() {
     const res = await fetch(`${API_BASE}/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, role, inviteCode })
+      body: JSON.stringify({ email, password, role, inviteCode, company_id })
     });
 
     const data = await res.json();
@@ -218,7 +219,7 @@ async function submitSignup() {
     }
 
     // Sucesso!
-    succEl.textContent = "Conta criada com sucesso! Você já pode entrar no sistema.";
+    succEl.textContent = data.message || "Conta criada com sucesso! Verifique seu e-mail se necessário.";
     succEl.style.display = 'block';
     
     // Auto preenche o login principal

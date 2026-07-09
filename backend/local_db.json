@@ -1,0 +1,80 @@
+{
+  "trainings": [
+    {
+      "id": "local-training-1781031876859",
+      "name": "treinamento de Testes",
+      "norm": "NR-10",
+      "hours": "50",
+      "validity": "6 meses",
+      "roles": "TI",
+      "mode": "Presencial",
+      "company_id": "00000000-0000-0000-0000-000000000000",
+      "status": "green",
+      "status_label": "Ativo",
+      "source": "local"
+    }
+  ],
+  "assignments": [
+    {
+      "id": "local-assignment-1781031876951",
+      "worker_email": "Treinamento.Ti@getrin.com",
+      "worker_id": "local-worker-1781031876948",
+      "training_id": "local-training-1781031876859",
+      "progress": 0,
+      "done": "—",
+      "expires": "—",
+      "status": "gray",
+      "status_label": "Pendente"
+    }
+  ],
+  "workers": [
+    {
+      "id": "local-worker-1780596234696",
+      "name": "Jonathas Barbosa1405",
+      "initials": "JB",
+      "matricula": "#34696",
+      "role": "Colaborador",
+      "sector": "—",
+      "manager": "—",
+      "admission": "04/06/2026",
+      "email": "jonathas.barbosa1405@gmail.com",
+      "phone": "—",
+      "compliance": 0,
+      "status": "gray",
+      "status_label": "Pendente",
+      "trainings": []
+    },
+    {
+      "id": "local-worker-1780708294250",
+      "name": "Worker Teste",
+      "initials": "WT",
+      "matricula": "#94255",
+      "role": "Colaborador",
+      "sector": "—",
+      "manager": "—",
+      "admission": "05/06/2026",
+      "email": "worker.teste@getrin.com",
+      "phone": "—",
+      "compliance": 0,
+      "status": "gray",
+      "status_label": "Pendente",
+      "trainings": []
+    },
+    {
+      "id": "local-worker-1781031876948",
+      "name": "Treinamento Ti",
+      "initials": "TT",
+      "matricula": "#76949",
+      "role": "Colaborador",
+      "sector": "—",
+      "manager": "—",
+      "admission": "09/06/2026",
+      "email": "Treinamento.Ti@getrin.com",
+      "phone": "—",
+      "compliance": 0,
+      "status": "gray",
+      "status_label": "Pendente",
+      "trainings": []
+    }
+  ]
+}

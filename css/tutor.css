@@ -1,0 +1,265 @@
+/* =============================================================
+   GETRIN — Tutor de Segurança IA
+   css/tutor.css
+   Chat flutuante presente em todas as páginas internas.
+   ============================================================= */
+
+/* ── Botão flutuante ─────────────────────────────────────────── */
+.tutor-fab {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  z-index: 1000;
+
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(24,95,165,.40);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, transform .15s, box-shadow .15s;
+}
+.tutor-fab:hover {
+  background: var(--blue-800);
+  transform: scale(1.07);
+  box-shadow: 0 4px 14px rgba(24,95,165,.50);
+}
+.tutor-fab .ti { font-size: 18px; }
+
+/* Bolinha de notificação no FAB */
+.tutor-fab-dot {
+  position: absolute;
+  top: 3px; right: 3px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--amber-600);
+  border: 1.5px solid #fff;
+  display: none;
+}
+.tutor-fab-dot.show { display: block; }
+
+/* ── Painel do chat ──────────────────────────────────────────── */
+.tutor-panel {
+  position: fixed;
+  bottom: 76px;
+  right: 22px;
+  z-index: 999;
+
+  width: 340px;
+  max-height: 520px;
+  background: var(--surface);
+  border: 0.5px solid var(--border-md);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.13);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  /* Animação de entrada */
+  opacity: 0;
+  transform: translateY(10px) scale(.97);
+  pointer-events: none;
+  transition: opacity .18s, transform .18s;
+}
+.tutor-panel.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: all;
+}
+
+/* Cabeçalho */
+.tutor-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 13px;
+  background: #181816;
+  border-bottom: 0.5px solid rgba(255,255,255,.06);
+  flex-shrink: 0;
+}
+.tutor-header-avatar {
+  width: 28px; height: 28px;
+  border-radius: var(--radius);
+  background: var(--blue-800);
+  color: var(--blue-100);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; flex-shrink: 0;
+}
+.tutor-header-info { flex: 1; }
+.tutor-header-name {
+  font-size: 12px; font-weight: 500; color: #fff;
+  line-height: 1.2;
+}
+.tutor-header-sub {
+  font-size: 10px; color: rgba(255,255,255,.32);
+  font-family: var(--mono);
+}
+.tutor-header-close {
+  font-size: 16px; color: rgba(255,255,255,.30);
+  cursor: pointer; line-height: 1;
+  transition: color .12s;
+  flex-shrink: 0;
+}
+.tutor-header-close:hover { color: rgba(255,255,255,.7); }
+
+/* Área de mensagens */
+.tutor-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scroll-behavior: smooth;
+}
+
+/* Bolhas */
+.tutor-msg {
+  display: flex;
+  flex-direction: column;
+  max-width: 88%;
+}
+.tutor-msg.user { align-self: flex-end; align-items: flex-end; }
+.tutor-msg.ai   { align-self: flex-start; align-items: flex-start; }
+
+.tutor-bubble {
+  padding: 8px 11px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+.tutor-msg.user .tutor-bubble {
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 2px;
+}
+.tutor-msg.ai .tutor-bubble {
+  background: var(--bg);
+  color: var(--text);
+  border: 0.5px solid var(--border);
+  border-bottom-left-radius: 2px;
+}
+
+/* Typing indicator (três pontos animados) */
+.tutor-typing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 13px;
+  align-self: flex-start;
+}
+.tutor-typing span {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--text-3);
+  animation: tutorBounce 1.2s infinite ease-in-out;
+}
+.tutor-typing span:nth-child(1) { animation-delay: 0s;    }
+.tutor-typing span:nth-child(2) { animation-delay: 0.18s; }
+.tutor-typing span:nth-child(3) { animation-delay: 0.36s; }
+@keyframes tutorBounce {
+  0%, 60%, 100% { transform: translateY(0);    opacity: .4; }
+  30%           { transform: translateY(-5px); opacity: 1;  }
+}
+
+/* Sugestões rápidas */
+.tutor-suggestions {
+  padding: 0 13px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.tutor-suggestion {
+  font-size: 11px;
+  padding: 3px 9px;
+  border: 0.5px solid var(--border-md);
+  border-radius: 99px;
+  background: var(--bg);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background .12s, color .12s;
+  white-space: nowrap;
+}
+.tutor-suggestion:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+}
+
+/* Rodapé com input */
+.tutor-footer {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* ── Responsividade ──────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .tutor-panel {
+    width: calc(100vw - 32px);
+    right: 16px;
+    bottom: 70px;
+    max-height: 60vh;
+  }
+  .tutor-fab {
+    bottom: 16px;
+    right: 16px;
+  }
+}
+  padding: 9px 13px;
+  border-top: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+.tutor-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 0.5px solid var(--border-md);
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-family: var(--ff);
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+  resize: none;
+  height: 32px;
+  line-height: 1.4;
+}
+.tutor-input:focus { border-color: var(--accent); }
+.tutor-send {
+  width: 30px; height: 30px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  transition: background .12s;
+  flex-shrink: 0;
+}
+.tutor-send:hover { background: var(--blue-800); }
+.tutor-send:disabled { background: var(--gray-100); cursor: default; }
+
+/* Aviso de API key */
+.tutor-api-warning {
+  margin: 8px 13px;
+  padding: 8px 10px;
+  background: var(--amber-50);
+  border: 0.5px solid rgba(133,79,11,.2);
+  border-radius: var(--radius);
+  font-size: 11px;
+  color: var(--amber-800);
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+.tutor-api-warning.hidden { display: none; }

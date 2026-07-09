@@ -1,15 +1,304 @@
-/* =============================================================
-   GETRIN — Portal do Trabalhador
-   css/portal.css
-   ============================================================= */
+/* GETRIN — Portal v2  |  css/portal.css */
 
 .portal-banner {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 15px 18px; border: 0.5px solid var(--border);
-  border-radius: var(--radius); margin-bottom: 16px; background: var(--surface);
+  padding: 22px 26px; border-radius: var(--radius); margin-bottom: 20px;
+  background: linear-gradient(135deg, #0F2057 0%, #1E3A8A 50%, #2563EB 100%);
+  box-shadow: 0 4px 20px rgba(37,99,235,0.30);
+  position: relative; overflow: hidden;
+}
+.portal-banner::after {
+  content: ''; position: absolute;
+  width: 200px; height: 200px; border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  top: -60px; right: -40px; pointer-events: none;
+}
+.portal-pct-block    { display: flex; align-items: center; gap: 16px; }
+.portal-big-pct      { font-family: var(--mono); font-size: 36px; font-weight: 700; line-height: 1; color: #fff; }
+.portal-status-name  { font-size: 14px; font-weight: 700; margin-bottom: 3px; color: #fff; }
+.portal-status-sub   { font-size: 12px; color: rgba(255,255,255,0.65); }
+
+.portal-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
 }
 
-.portal-pct-block    { display: flex; align-items: center; gap: 14px; }
-.portal-big-pct      { font-family: var(--mono); font-size: 30px; font-weight: 500; line-height: 1; }
-.portal-status-name  { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
-.portal-status-sub   { font-size: 11.5px; color: var(--text-3); }
+.portal-settings-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.portal-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.portal-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-3);
+  font-family: var(--ff);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.portal-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.portal-tab-panel {
+  display: none;
+}
+
+.portal-tab-panel.active {
+  display: block;
+}
+
+.portal-card-list {
+  display: grid;
+  gap: 0;
+}
+
+.portal-info-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.portal-info-card:last-child {
+  border-bottom: 0;
+}
+
+.portal-info-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--blue-50);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.portal-info-icon .ti {
+  font-size: 17px;
+}
+
+.portal-info-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.portal-info-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.portal-info-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.portal-empty-state {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  padding: 28px 18px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.portal-empty-state .ti {
+  font-size: 26px;
+  color: var(--blue-400);
+}
+
+.portal-empty-state div {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.portal-empty-state.compact {
+  padding: 14px;
+}
+
+.modal-box-wide {
+  width: 760px;
+}
+
+.training-detail-summary {
+  display: grid;
+  grid-template-columns: 0.8fr 1.5fr 0.9fr 0.9fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.training-detail-summary > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.training-detail-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-3);
+  margin-bottom: 6px;
+}
+
+.training-material-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.training-material-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.training-material-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--blue-50);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+.training-material-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.training-material-meta,
+.training-history {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.training-history {
+  display: grid;
+  gap: 8px;
+}
+
+.training-history div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.material-viewer-frame {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 280px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.material-viewer-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: #fff;
+}
+
+.material-viewer-status {
+  margin-top: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+@media (max-width: 900px) {
+  .portal-banner {
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .portal-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .portal-tab {
+    flex: 0 0 auto;
+  }
+
+  .training-detail-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .portal-banner {
+    flex-direction: column;
+    padding: 18px;
+  }
+
+  .portal-pct-block {
+    align-items: flex-start;
+  }
+
+  .portal-big-pct {
+    font-size: 30px;
+  }
+
+  .portal-settings-actions,
+  .portal-info-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .portal-info-card .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .training-detail-summary,
+  .training-material-row {
+    grid-template-columns: 1fr;
+  }
+
+  .material-viewer-frame {
+    min-height: 220px;
+  }
+}

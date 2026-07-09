@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Getrin — Login</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
@@ -18,7 +20,7 @@
 
     <!-- Logo -->
     <div class="login-logo-name">
-      g<span>etrin</span>
+      g<span>etrin(beta)</span> 
       <div class="logo-pip" style="width:6px;height:6px;margin-left:4px;"></div>
     </div>
     <div class="login-logo-sub">Gestão de Treinamentos Regulatórios</div>
@@ -83,6 +85,11 @@
     <div class="form-field" style="margin-bottom: 16px;">
       <label class="form-label">Senha</label>
       <input class="form-input" id="signup-password" type="password" placeholder="Mínimo 6 caracteres" />
+    </div>
+    <div class="form-field" style="margin-bottom: 16px;">
+      <label class="form-label">ID da Empresa (Opcional)</label>
+      <input class="form-input" id="signup-company-id" type="text" placeholder="UUID da empresa" value="00000000-0000-0000-0000-000000000000" />
+      <small style="color: var(--text-3); font-size: 11px;">Padrão: Empresa Padrão</small>
     </div>
     <div class="form-field" style="margin-bottom: 24px;">
       <label class="form-label">Perfil de Acesso</label>

@@ -3,102 +3,470 @@
 -- Copie e cole este script no SQL Editor do seu projeto Supabase
 -- ============================================================
 
--- Habilitar a extensão uuid-ossp para geração de UUIDs primários
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. TABELA: TRABALHADORES (workers)
-CREATE TABLE IF NOT EXISTS workers (
+-- Storage persistente para PDFs de treinamento.
+-- Se preferir, crie pelo painel do Supabase um bucket publico chamado "training-materials".
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('training-materials', 'training-materials', true, 12582912, ARRAY['application/pdf'])
+ON CONFLICT (id) DO UPDATE
+SET public = EXCLUDED.public,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- 0. TABELA: EMPRESAS (companies)
+CREATE TABLE IF NOT EXISTS public.companies (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
-    initials VARCHAR(10) NOT NULL,
-    matricula VARCHAR(50) UNIQUE NOT NULL,
-    role VARCHAR(150) NOT NULL,
-    sector VARCHAR(150) NOT NULL,
-    manager VARCHAR(155), -- Pode referenciar opcionalmente o nome de outro gestor
-    admission VARCHAR(50), -- Guardado como texto ou data formatada, ex: "Mar 2019"
-    email VARCHAR(255) UNIQUE,
-    phone VARCHAR(50),
-    compliance INTEGER DEFAULT 0 CHECK (compliance >= 0 AND compliance <= 100),
-    status VARCHAR(50) DEFAULT 'gray', -- 'green' (Conforme), 'amber' (Em risco), 'red' (Não conforme), 'gray' (Pendente)
-    status_label VARCHAR(100) DEFAULT 'Pendente',
+    cnpj VARCHAR(20) UNIQUE NOT NULL,
+    sector VARCHAR(255),
+    contact_email VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 2. TABELA: CATÁLOGO DE TREINAMENTOS (trainings)
-CREATE TABLE IF NOT EXISTS trainings (
+-- 1. TABELA: PERFIL DE USUÁRIO (users_profile)
+CREATE TABLE IF NOT EXISTS public.users_profile (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    company_id UUID REFERENCES public.companies(id),
+    name VARCHAR(255),
+    role VARCHAR(50) DEFAULT 'collaborator',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. TABELA: TRABALHADORES (workers)
+CREATE TABLE IF NOT EXISTS public.workers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID NOT NULL REFERENCES public.companies(id),
     name VARCHAR(255) NOT NULL,
-    norm VARCHAR(50) NOT NULL, -- Ex: "NR-10", "NR-12", etc.
-    hours VARCHAR(50) NOT NULL, -- Ex: "40h", "16h"
-    validity VARCHAR(50) NOT NULL, -- Ex: "2 anos", "1 ano"
-    roles VARCHAR(255), -- Ex: "Eletricista, Manut."
-    mode VARCHAR(100) NOT NULL, -- Ex: "Presencial", "EAD", "Híbrido"
-    status VARCHAR(50) DEFAULT 'green', -- 'green' (Ativo), 'amber' (Em revisão), 'red' (Descontinuado)
+    initials VARCHAR(10) NOT NULL DEFAULT 'FT',
+    matricula VARCHAR(50) NOT NULL DEFAULT 'Aguardando',
+    sector VARCHAR(150) NOT NULL DEFAULT 'Geral',
+    manager VARCHAR(255),
+    admission DATE,
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    role VARCHAR(150) NOT NULL DEFAULT 'Operador',
+    compliance INTEGER DEFAULT 0, -- Necessário para Dashboard
+    status VARCHAR(50) DEFAULT 'gray', -- Necessário para Dashboard
+    status_label VARCHAR(100) DEFAULT 'Pendente',
+    CONSTRAINT workers_id_fkey FOREIGN KEY (id) REFERENCES public.users_profile(id)
+);
+
+-- 3. TABELA: CATÁLOGO DE TREINAMENTOS (trainings)
+CREATE TABLE IF NOT EXISTS public.trainings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID REFERENCES public.companies(id),
+    name VARCHAR(255) NOT NULL,
+    norm VARCHAR(50) NOT NULL,
+    hours INTEGER NOT NULL,
+    validity VARCHAR(100),
+    validity_months INTEGER NOT NULL DEFAULT 12,
+    roles VARCHAR(255),
+    mode VARCHAR(100) NOT NULL,
+    materials JSONB DEFAULT '[]'::jsonb,
+    is_active BOOLEAN DEFAULT true,
+    status VARCHAR(50) DEFAULT 'green',
     status_label VARCHAR(100) DEFAULT 'Ativo',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3. TABELA: ASSOCIAÇÃO DE TREINAMENTOS E TRABALHADORES (worker_trainings)
--- Representa os treinamentos atribuídos a cada trabalhador
-CREATE TABLE IF NOT EXISTS worker_trainings (
+-- 4. TABELA: ASSOCIAÇÃO WORKER-TRAININGS (worker_trainings)
+CREATE TABLE IF NOT EXISTS public.worker_trainings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    worker_id UUID NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
-    training_id UUID NOT NULL REFERENCES trainings(id) ON DELETE CASCADE,
+    worker_id UUID NOT NULL REFERENCES public.workers(id) ON DELETE CASCADE,
+    training_id UUID NOT NULL REFERENCES public.trainings(id) ON DELETE CASCADE,
     progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
-    done VARCHAR(50) DEFAULT '—', -- Data de conclusão por extenso ou formatada
-    expires VARCHAR(50) DEFAULT '—', -- Data de vencimento por extenso ou formatada
-    expires_color VARCHAR(50) DEFAULT '', -- 'green', 'amber' ou vazio
-    status VARCHAR(50) DEFAULT 'gray', -- 'green' (Válido), 'amber' (Vencido), 'blue' (Em andamento), 'gray' (Pendente)
+    viewed_materials JSONB DEFAULT '[]'::jsonb,
+    material_progress JSONB DEFAULT '{}'::jsonb,
+    done_at DATE,
+    expires DATE,
+    status VARCHAR(50) DEFAULT 'gray',
     status_label VARCHAR(100) DEFAULT 'Pendente',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_worker_training UNIQUE (worker_id, training_id)
 );
 
--- 4. TABELA: ALERTAS GERAIS (alerts)
-CREATE TABLE IF NOT EXISTS alerts (
+-- 5. TABELA: CERTIFICADOS (certificates)
+CREATE TABLE IF NOT EXISTS public.certificates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    norm VARCHAR(50) NOT NULL, -- Ex: "NR-12"
+    assignment_id UUID NOT NULL UNIQUE REFERENCES public.worker_trainings(id) ON DELETE CASCADE,
+    worker_id UUID NOT NULL REFERENCES public.workers(id) ON DELETE CASCADE,
+    training_id UUID NOT NULL REFERENCES public.trainings(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+    code VARCHAR(80) NOT NULL UNIQUE,
+    worker_name VARCHAR(255) NOT NULL,
+    worker_email VARCHAR(255),
+    training_name VARCHAR(255) NOT NULL,
+    norm VARCHAR(50),
+    hours INTEGER,
+    issued_at DATE NOT NULL DEFAULT CURRENT_DATE,
+    expires_at DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. TABELA: ALERTAS (alerts)
+CREATE TABLE IF NOT EXISTS public.alerts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+    norm VARCHAR(50) NOT NULL,
     title VARCHAR(255) NOT NULL,
-    count INTEGER NOT NULL DEFAULT 0,
-    days INTEGER NOT NULL,
-    level VARCHAR(50) NOT NULL, -- 'urgent' ou 'monitor'
+    days_until_expiry INTEGER NOT NULL,
+    level VARCHAR(50) NOT NULL CHECK (level IN ('expired', 'urgent', 'warning', 'monitor')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 7. TABELA: LOGS DE AUDITORIA (audit_logs)
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID REFERENCES public.companies(id),
+    user_id UUID REFERENCES auth.users(id),
+    action VARCHAR(50) NOT NULL,
+    table_name VARCHAR(100) NOT NULL,
+    record_id UUID,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================
--- INSERÇÃO DE DADOS DE EXEMPLO (MOCK DATA)
+-- ÍNDICES E POLÍTICAS DE SEGURANÇA (RLS)
 -- ============================================================
 
--- Inserindo Treinamentos Padrões
-INSERT INTO trainings (id, name, norm, hours, validity, roles, mode, status, status_label) VALUES
-('a0000000-0000-0000-0000-000000000001', 'Segurança em instalações elétricas', 'NR-10', '40h', '2 anos', 'Eletricista, Manut.', 'Presencial', 'green', 'Ativo'),
-('a0000000-0000-0000-0000-000000000002', 'Máquinas e equipamentos', 'NR-12', '16h', '1 ano', 'Operador, Técnico', 'EAD', 'green', 'Ativo'),
-('a0000000-0000-0000-0000-000000000003', 'Trabalho em altura', 'NR-35', '8h', '2 anos', 'Manut., Construção', 'Híbrido', 'green', 'Ativo'),
-('a0000000-0000-0000-0000-000000000004', 'Primeiros socorros e emergências', 'NR-07', '8h', '1 ano', 'Todos colaboradores', 'EAD', 'amber', 'Em revisão'),
-('a0000000-0000-0000-0000-000000000005', 'Espaço confinado', 'NR-33', '16h', '1 ano', 'Manutenção', 'Presencial', 'green', 'Ativo'),
-('a0000000-0000-0000-0000-000000000006', 'Proteção contra incêndio', 'NR-23', '4h', '2 anos', 'Brigada de incêndio', 'EAD', 'red', 'Descontinuado'),
-('a0000000-0000-0000-0000-000000000007', 'Ergonomia no trabalho', 'NR-17', '4h', '2 anos', 'Todos colaboradores', 'EAD', 'green', 'Ativo'),
-('a0000000-0000-0000-0000-000000000008', 'Equipamentos de proteção individual', 'NR-06', '4h', '1 ano', 'Todos colaboradores', 'EAD', 'green', 'Ativo')
-ON CONFLICT (id) DO NOTHING;
+-- Índices para performance
+CREATE INDEX IF NOT EXISTS idx_workers_company_id ON public.workers(company_id);
+CREATE INDEX IF NOT EXISTS idx_trainings_company_id ON public.trainings(company_id);
+CREATE INDEX IF NOT EXISTS idx_worker_trainings_worker_id ON public.worker_trainings(worker_id);
+CREATE INDEX IF NOT EXISTS idx_worker_trainings_training_id ON public.worker_trainings(training_id);
+CREATE INDEX IF NOT EXISTS idx_certificates_assignment_id ON public.certificates(assignment_id);
+CREATE INDEX IF NOT EXISTS idx_certificates_code ON public.certificates(code);
+CREATE INDEX IF NOT EXISTS idx_certificates_company_id ON public.certificates(company_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_company_id ON public.alerts(company_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_days_until_expiry ON public.alerts(days_until_expiry);
 
--- Inserindo Trabalhadores de Exemplo
-INSERT INTO workers (id, name, initials, matricula, role, sector, manager, admission, email, phone, compliance, status, status_label) VALUES
-('b0000000-0000-0000-0000-000000000001', 'Carlos Alberto Mendes', 'CAM', '#00412', 'Eletricista Sênior', 'Infraestrutura', 'Paulo Henrique', 'Mar 2019', 'c.mendes@metalurgica.com.br', '(71) 99801-2233', 67, 'amber', 'Em risco'),
-('b0000000-0000-0000-0000-000000000002', 'Fernanda Rocha', 'FR', '#00389', 'Técnica de Segurança', 'Manutenção', 'Lucas Andrade', 'Jan 2020', 'f.rocha@metalurgica.com.br', '(71) 99700-4455', 100, 'green', 'Conforme'),
-('b0000000-0000-0000-0000-000000000003', 'Maria Santos', 'MS', '#00451', 'Operadora de Prensa', 'Produção', 'Renata Lima', 'Jun 2021', 'm.santos@metalurgica.com.br', '(71) 98833-6677', 0, 'red', 'Não conforme')
-ON CONFLICT (id) DO NOTHING;
+-- Atualizacoes seguras para bancos ja criados antes desta versao
+ALTER TABLE public.trainings
+    ADD COLUMN IF NOT EXISTS materials JSONB DEFAULT '[]'::jsonb;
 
--- Associando Treinamentos aos Trabalhadores
-INSERT INTO worker_trainings (worker_id, training_id, progress, done, expires, expires_color, status, status_label) VALUES
-('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 100, 'Jun 2024', 'Jun 2026', 'green', 'green', 'Válido'),
-('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002', 100, 'Ago 2023', 'Ago 2024', 'amber', 'amber', 'Vencido'),
-('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000003', 60, '—', '—', '', 'blue', 'Em andamento'),
-('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000004', 0, '—', '—', '', 'gray', 'Pendente')
-ON CONFLICT (worker_id, training_id) DO NOTHING;
+ALTER TABLE public.worker_trainings
+    ADD COLUMN IF NOT EXISTS viewed_materials JSONB DEFAULT '[]'::jsonb;
 
--- Inserindo Alertas de Exemplo
-INSERT INTO alerts (norm, title, count, days, level) VALUES
-('NR-12', 'Operadores de prensa (Linha B)', 14, 12, 'urgent'),
-('NR-35', 'Trabalho em altura (Manutenção)', 8, 19, 'urgent'),
-('NR-10', 'Eletricistas (Infraestrutura)', 16, 28, 'monitor')
-ON CONFLICT (id) DO NOTHING;
+ALTER TABLE public.worker_trainings
+    ADD COLUMN IF NOT EXISTS material_progress JSONB DEFAULT '{}'::jsonb;
+
+CREATE TABLE IF NOT EXISTS public.certificates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assignment_id UUID NOT NULL UNIQUE REFERENCES public.worker_trainings(id) ON DELETE CASCADE,
+    worker_id UUID NOT NULL REFERENCES public.workers(id) ON DELETE CASCADE,
+    training_id UUID NOT NULL REFERENCES public.trainings(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+    code VARCHAR(80) NOT NULL UNIQUE,
+    worker_name VARCHAR(255) NOT NULL,
+    worker_email VARCHAR(255),
+    training_name VARCHAR(255) NOT NULL,
+    norm VARCHAR(50),
+    hours INTEGER,
+    issued_at DATE NOT NULL DEFAULT CURRENT_DATE,
+    expires_at DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE table_schema = 'public'
+          AND table_name = 'alerts'
+          AND constraint_name = 'alerts_level_check'
+    ) THEN
+        ALTER TABLE public.alerts DROP CONSTRAINT alerts_level_check;
+    END IF;
+
+    ALTER TABLE public.alerts
+        ADD CONSTRAINT alerts_level_check
+        CHECK (level IN ('expired', 'urgent', 'warning', 'monitor'));
+END $$;
+
+-- ============================================================
+-- FUNCOES E TRIGGERS
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+    metadata_company_id UUID;
+BEGIN
+    metadata_company_id := COALESCE(
+        NULLIF(NEW.raw_user_meta_data->>'company_id', '')::UUID,
+        '00000000-0000-0000-0000-000000000000'::UUID
+    );
+
+    INSERT INTO public.users_profile (id, company_id, name, role)
+    VALUES (
+        NEW.id,
+        metadata_company_id,
+        COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'full_name', 'Novo Usuario'),
+        COALESCE(NEW.raw_user_meta_data->>'role', 'worker')
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET
+        company_id = EXCLUDED.company_id,
+        name = EXCLUDED.name,
+        role = EXCLUDED.role;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+CREATE OR REPLACE FUNCTION public.clean_expired_alerts()
+RETURNS INTEGER AS $$
+DECLARE
+    removed_count INTEGER;
+BEGIN
+    DELETE FROM public.alerts
+    WHERE days_until_expiry < -30;
+
+    GET DIAGNOSTICS removed_count = ROW_COUNT;
+    RETURN removed_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
+-- HABILITAR ROW LEVEL SECURITY
+-- ============================================================
+
+ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users_profile ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.workers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.trainings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.worker_trainings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.alerts ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
+-- POLÍTICAS PARA COMPANIES
+-- ============================================================
+
+-- Users podem ver sua própria empresa
+CREATE POLICY companies_select_policy ON public.companies
+    FOR SELECT
+    USING (
+        id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- ============================================================
+-- POLÍTICAS PARA WORKERS
+-- ============================================================
+
+-- Users podem ver/modificar workers da sua empresa
+CREATE POLICY workers_select_policy ON public.workers
+    FOR SELECT
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+CREATE POLICY workers_insert_policy ON public.workers
+    FOR INSERT
+    WITH CHECK (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+CREATE POLICY workers_update_policy ON public.workers
+    FOR UPDATE
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+CREATE POLICY workers_delete_policy ON public.workers
+    FOR DELETE
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- ============================================================
+-- POLÍTICAS PARA TRAININGS
+-- ============================================================
+
+-- Users podem ver trainings globais ou da sua empresa
+CREATE POLICY trainings_select_policy ON public.trainings
+    FOR SELECT
+    USING (
+        company_id IS NULL OR company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- Managers podem criar trainings
+CREATE POLICY trainings_insert_policy ON public.trainings
+    FOR INSERT
+    WITH CHECK (
+        (company_id IS NULL) OR
+        (company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        ))
+    );
+
+-- Managers podem atualizar trainings da sua empresa
+CREATE POLICY trainings_update_policy ON public.trainings
+    FOR UPDATE
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- Admins podem deletar trainings
+CREATE POLICY trainings_delete_policy ON public.trainings
+    FOR DELETE
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- ============================================================
+-- POLÍTICAS PARA WORKER_TRAININGS
+-- ============================================================
+
+-- Users podem ver atribuições de workers da sua empresa
+CREATE POLICY worker_trainings_select_policy ON public.worker_trainings
+    FOR SELECT
+    USING (
+        worker_id IN (
+            SELECT id FROM public.workers
+            WHERE company_id IN (
+                SELECT company_id FROM public.users_profile
+                WHERE id = auth.uid()
+            )
+        )
+    );
+
+-- Users/Managers podem criar atribuições
+CREATE POLICY worker_trainings_insert_policy ON public.worker_trainings
+    FOR INSERT
+    WITH CHECK (
+        worker_id IN (
+            SELECT id FROM public.workers
+            WHERE company_id IN (
+                SELECT company_id FROM public.users_profile
+                WHERE id = auth.uid()
+            )
+        )
+    );
+
+-- Users/Managers podem atualizar atribuições
+CREATE POLICY worker_trainings_update_policy ON public.worker_trainings
+    FOR UPDATE
+    USING (
+        worker_id IN (
+            SELECT id FROM public.workers
+            WHERE company_id IN (
+                SELECT company_id FROM public.users_profile
+                WHERE id = auth.uid()
+            )
+        )
+    );
+
+-- Admins podem deletar atribuições
+CREATE POLICY worker_trainings_delete_policy ON public.worker_trainings
+    FOR DELETE
+    USING (
+        worker_id IN (
+            SELECT id FROM public.workers
+            WHERE company_id IN (
+                SELECT company_id FROM public.users_profile
+                WHERE id = auth.uid()
+            )
+        )
+    );
+
+-- ============================================================
+-- POLÍTICAS PARA ALERTS
+-- ============================================================
+
+-- ============================================================
+-- POLITICAS PARA CERTIFICATES
+-- ============================================================
+
+CREATE POLICY certificates_select_policy ON public.certificates
+    FOR SELECT
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+        OR worker_id = auth.uid()
+    );
+
+CREATE POLICY certificates_insert_policy ON public.certificates
+    FOR INSERT
+    WITH CHECK (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+        OR worker_id = auth.uid()
+    );
+
+-- Users podem ver alertas da sua empresa
+CREATE POLICY alerts_select_policy ON public.alerts
+    FOR SELECT
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- Managers podem criar alertas
+CREATE POLICY alerts_insert_policy ON public.alerts
+    FOR INSERT
+    WITH CHECK (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- Managers podem atualizar alertas
+CREATE POLICY alerts_update_policy ON public.alerts
+    FOR UPDATE
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );
+
+-- Managers podem deletar alertas
+CREATE POLICY alerts_delete_policy ON public.alerts
+    FOR DELETE
+    USING (
+        company_id IN (
+            SELECT company_id FROM public.users_profile
+            WHERE id = auth.uid()
+        )
+    );

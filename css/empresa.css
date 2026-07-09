@@ -1,199 +1,66 @@
-/* =============================================================
-   GETRIN — Empresa
-   css/empresa.css
-   ============================================================= */
+/* GETRIN — Empresa v2  |  css/empresa.css */
 
-/* Layout geral */
-.empresa-layout {
-  display: flex;
-  gap: 18px;
-  align-items: flex-start;
-}
+.empresa-layout { display: flex; gap: 20px; align-items: flex-start; }
+.empresa-sidebar-col { width: 210px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; position: sticky; top: 0; }
+.empresa-form-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 
-/* Coluna esquerda fixa */
-.empresa-sidebar-col {
-  width: 210px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  position: sticky;
-  top: 0;
-}
-
-/* Coluna do formulário */
-.empresa-form-col {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-/* Card base */
 .card {
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px 18px;
-  box-shadow: var(--shadow);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 20px;
+  box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 14px;
 }
-
 .card-label {
-  font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--text-3);
-  margin-bottom: -4px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-3); font-weight: 600;
 }
-
 .card-section-title {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--text);
-  padding-bottom: 10px;
-  border-bottom: 0.5px solid var(--border);
-  margin-bottom: -2px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; color: var(--text);
+  padding-bottom: 12px; border-bottom: 1px solid var(--border);
 }
-.card-section-title .ti {
-  font-size: 14px;
-  color: var(--accent);
-}
+.card-section-title .ti { font-size: 15px; color: var(--accent); }
 
-/* Upload de logo */
 .logo-upload-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 18px 10px;
-  border: 1.5px dashed var(--border-md);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: border-color .15s, background .15s;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 20px 10px; border: 2px dashed var(--blue-200);
+  border-radius: var(--radius); cursor: pointer; transition: all .15s;
 }
-.logo-upload-area:hover {
-  border-color: var(--accent);
-  background: var(--accent-light);
-}
+.logo-upload-area:hover { border-color: var(--accent); background: var(--blue-50); }
 .logo-preview {
-  width: 64px;
-  height: 64px;
-  border-radius: var(--radius);
-  background: var(--bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
+  width: 64px; height: 64px; border-radius: var(--radius-sm);
+  background: var(--blue-50); display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
-.logo-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-.logo-upload-hint {
-  text-align: center;
-  font-size: 11px;
-  color: var(--text-3);
-  line-height: 1.5;
-}
-.logo-upload-hint span {
-  font-size: 10px;
-  color: var(--text-3);
-  opacity: .7;
-}
+.logo-preview img { width: 100%; height: 100%; object-fit: contain; }
+.logo-upload-hint { text-align: center; font-size: 11px; color: var(--text-3); line-height: 1.5; }
+.logo-upload-hint span { font-size: 10px; opacity: .7; }
 
-/* Anel de conformidade */
 .empresa-compliance-ring {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  margin: 4px auto 0;
-  width: 80px;
-  height: 80px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; margin: 4px auto 0; width: 80px; height: 80px;
 }
 .ring-label {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--mono);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--blue-800);
 }
-
-/* Mini stats */
 .empresa-stats-mini {
-  display: flex;
-  justify-content: space-around;
-  padding-top: 6px;
-  border-top: 0.5px solid var(--border);
+  display: flex; justify-content: space-around;
+  padding-top: 8px; border-top: 1px solid var(--border);
 }
-.stat-mini {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-.stat-mini-val {
-  font-family: var(--mono);
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text);
-}
-.stat-mini-key {
-  font-size: 9.5px;
-  color: var(--text-3);
-  font-family: var(--mono);
-  text-transform: uppercase;
-  letter-spacing: .04em;
-}
+.stat-mini { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.stat-mini-val { font-family: var(--mono); font-size: 16px; font-weight: 700; }
+.stat-mini-key { font-size: 9px; color: var(--text-3); font-family: var(--mono); text-transform: uppercase; letter-spacing: .05em; }
 .c-green { color: var(--green-600) !important; }
 .c-warn  { color: var(--amber-600) !important; }
 .c-danger{ color: var(--red-600)   !important; }
 
-/* Chips das NRs */
-.nr-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-height: 28px;
-}
+.nr-chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; }
 .nr-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: var(--blue-50);
-  color: var(--blue-800);
-  border: 0.5px solid var(--blue-200);
-  border-radius: 2px;
-  font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 500;
-  padding: 3px 8px;
-  letter-spacing: .04em;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--blue-50); color: var(--blue-800);
+  border: 1px solid var(--blue-200); border-radius: 20px;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+  padding: 4px 10px;
 }
-.nr-chip-remove {
-  cursor: pointer;
-  font-size: 11px;
-  color: var(--blue-400);
-  line-height: 1;
-  transition: color .1s;
-}
+.nr-chip-remove { cursor: pointer; font-size: 11px; color: var(--blue-400); line-height: 1; transition: color .1s; }
 .nr-chip-remove:hover { color: var(--red-600); }
-
-.nr-add-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.nr-add-row { display: flex; align-items: center; gap: 8px; }
