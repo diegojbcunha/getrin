@@ -124,7 +124,7 @@ cd getrin
 ## Acesso de Demonstração
 
 ```
-URL: (https://getrin.vercel.app/html/login.html)
+URL: [Getrin](https://getrin.vercel.app/html/login.html)
 Usuário: admin@getrin.com
 Senha: 123456
 ```
